@@ -1,0 +1,98 @@
+/* ============================================================ */
+/* BLDUDTF.CLLE                                                 */
+/* Generic build script for a UDTF                             */
+/*                                                              */
+/* Parameters:                                                  */
+/*   &OBJLIB  - Target object library    (default: SQLTOOLS)    */
+/*   &EXTPGM  - External program name    (default: SPOOLDATA)   */
+/*              Used as C++ source member, module, and srvpgm  */
+/*   &UDTFMBR - UDTF SQL source member   (default: SPOOLDATA)   */
+/*                                                              */
+/* Steps:                                                       */
+/*   1. Create the C++ module  (CRTCPPMOD)                      */
+/*   2. Bind into a service program (CRTSRVPGM)                 */
+/*   3. Register the UDTF via SQL DDL (RUNSQLSTM)              */
+/*                                                              */
+/* Prerequisites:                                               */
+/*   - Target library (&OBJLIB) must exist                      */
+/*   - Source lib SQLTOOLSRC must contain the source members    */
+/*   - Caller must have *CHANGE authority to &OBJLIB            */
+/*                                                              */
+/* (c) 1992-2025 Robert Cozzi Jr.  All rights reserved.        */
+/* ============================================================ */
+             PGM        PARM(&OBJLIB &EXTPGM &UDTFMBR)
+
+/* ------------------------------------------------------------ */
+/* Parameters                                                   */
+/* ------------------------------------------------------------ */
+             DCL        VAR(&OBJLIB)  TYPE(*CHAR) LEN(10)
+             DCL        VAR(&EXTPGM)  TYPE(*CHAR) LEN(10)
+             DCL        VAR(&UDTFMBR) TYPE(*CHAR) LEN(10)
+
+/* ------------------------------------------------------------ */
+/* Working variables - defaults applied below                   */
+/* ------------------------------------------------------------ */
+             DCL        VAR(&LIB)     TYPE(*CHAR) LEN(10) +
+                          VALUE('SQLTOOLS')
+             DCL        VAR(&PGMMBR)  TYPE(*CHAR) LEN(10) +
+                          VALUE('SPOOLDATA')
+             DCL        VAR(&SQLMBR)  TYPE(*CHAR) LEN(10) +
+                          VALUE('SPOOLDATA')
+
+             DCL        VAR(&SRCLIB)  TYPE(*CHAR) LEN(10) +
+                          VALUE('SQLTOOLSRC')
+             DCL        VAR(&SRCFILE) TYPE(*CHAR) LEN(10) +
+                          VALUE('QCPPSRC')
+
+/* ------------------------------------------------------------ */
+/* Apply parameters if provided; MCH3601 = parm was omitted     */
+/* ------------------------------------------------------------ */
+             CHGVAR     VAR(&LIB)     VALUE(&OBJLIB)
+             MONMSG     MSGID(MCH3601)
+
+             CHGVAR     VAR(&PGMMBR)  VALUE(&EXTPGM)
+             MONMSG     MSGID(MCH3601)
+
+             CHGVAR     VAR(&SQLMBR)  VALUE(&UDTFMBR)
+             MONMSG     MSGID(MCH3601)
+
+/* ------------------------------------------------------------ */
+/* Step 1: Create the C++ module                                */
+/* ------------------------------------------------------------ */
+             CRTCPPMOD  MODULE(&LIB/&PGMMBR) +
+                          SRCFILE(&SRCLIB/&SRCFILE) +
+                          SRCMBR(&PGMMBR) +
+                          TGTRLS(*CURRENT) +
+                          OPTIMIZE(10) +
+                          DBGVIEW(*NONE) +
+                          OUTPUT(*NONE) +
+                          TERASPACE(*YES *TSIFC) +
+                          STGMDL(*INHERIT)
+
+/* ------------------------------------------------------------ */
+/* Step 2: Bind module into a program                           */
+/* ------------------------------------------------------------ */
+             CRTPGM     PGM(&LIB/&PGMMBR) +
+                          MODULE(&LIB/&PGMMBR) +
+                          ACTGRP(*CALLER) +
+                          TGTRLS(*CURRENT) +
+                          STGMDL(*INHERIT)
+
+/* ------------------------------------------------------------ */
+/* Step 3: Register (or replace) the UDTF via SQL DDL           */
+/* ------------------------------------------------------------ */
+             RUNSQLSTM  SRCFILE(&SRCLIB/QUDFSRC) +
+                          SRCMBR(&SQLMBR) +
+                          COMMIT(*NONE) +
+                          NAMING(*SYS) +
+                          ERRLVL(30) +
+                          DATFMT(*ISO) +
+                          DFTRDBCOL(&LIB) +
+                          OPTION(*LIST) +
+                          SECLVLTXT(*YES) +
+                          OUTPUT(*PRINT) +
+                          TGTRLS(*CURRENT)
+
+             SNDPGMMSG  MSG('SPOOLED_DATA UDTF build complete.')
+
+             ENDPGM
