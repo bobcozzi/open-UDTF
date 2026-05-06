@@ -8,6 +8,9 @@
 *.swp
 *~
 
+# IBM i system headers (QSYSINC) - local copies only, not for distribution
+src/QSYSINC/
+
 # Build artifacts
 *.o
 *.so
