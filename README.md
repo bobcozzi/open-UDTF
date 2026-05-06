@@ -3,8 +3,10 @@
 Open-source IBM i SQL User-Defined Table Functions (UDTFs)
 by Robert Cozzi Jr.
 
-Each function lives under `src/<function_name>/` and is
-self-contained — no shared service programs are required.
+I am releasing some of my SQLTOOLS SQL Table functions as open source. However they are being created as stand-alone UDTFs without any dependencies on the SQLTOOLS *SRVPGM and helper functions in the main product. The SQLTOOLS shall continue to be available in compiled form, for free on my SQLTOOLS repo.
+The first function being released is SPOOLED_DATA. It reads SPOOLED files and returns their results. It reads directly into the SPOOLED FILE object; it does not copy the SPOOLED FILE to a database file. This function interprets the SCS data stream and passes DBCS data transparently through the resulting columns. There is also a 2nd column SPOOLED_DATA_BIN that contains the non-textualized SPOOLED FILE records/line data, which in most cases can be ignored. It is functionally equivalent to the SQL Tools READSPLF table function.
+
+Each function's source lives under `/src/<function_name>/` and is self-contained. Shared components, such as the COZUTILS.H header file, are in the `/src/shared/h` folder and should be copied to an H file in the same library where the other source code is uploaded to. That is: `/src/shared/h/` currently contains `COZUTILS.H` and it should be uploaded to: `SQLTOOLS/H(COZUTILS)`
 
 ---
 
@@ -17,16 +19,16 @@ line as a row.  A drop-in, standalone replacement for the
 classic `READSPLF` UDTF.
 
 **Schema:** `SQLTOOLS`
-**Specific name:** `SQLTOOLS.ST_SPOOLDATA`
-**External module:** `SQLTOOLS/ST_SPOOLDATA`
+**Specific name:** `SQLTOOLS.SPOOL_DATA`
+**External program name:** `SQLTOOLS/SPOOLDATA`
 
 #### Source files
 
-| Folder | File | Purpose |
-|--------|------|---------|
-| `src/spooled_data/c/` | `SPOOLDATA.CPP` | ILE C++ UDTF entry point |
-| `src/spooled_data/h/` | `SPLUTILS.H` | Standalone utility header |
-| `src/spooled_data/sql/` | `SPOOLDATA.SQL` | `CREATE FUNCTION` DDL + COMMENTs |
+| Folder | File | Target Src | Purpose |
+|--------|------|---------|---------|
+| `/src/shared/h/` | `COZUTILS.H` | SQLTOOLS/H(COZUTILS) | Standalone utility header |
+| `/src/spooled_data/QCSRC/` | `SPOOLDATA.CPP` | SQLTOOLS/QCSRC(SPOOLDATA) | ILE C++ UDTF program |
+| `/src/spooled_data/QSQLSRC/` | `SPOOLDATA.SQL` | SQLTOOLS/QUDFSRC(SPOOLDATA) | SQL UDTF source |
 
 #### Signature
 
@@ -80,17 +82,24 @@ SELECT *
 
 #### Build
 
+Using the BLDUDTF helper function provided, compile/build the SPOOL_DATA UDTF using the following CL command.
+```clle
+BLDUDTF UDTF(SPOOLDATA)
+        EXTPGM(SPOOLDATA)
+        EXTPGMSRC(SQLTOOLSRC/QCSRC)
+        UDTFSRC(SQLTOOLSRC/QUDFSRC)
+        OBJLIB(SQLTOOLS)
+        DBGVIEW(*NONE)
+        DROP(*NO)
 ```
-CRTCPPMOD SRCFILE(SQLTOOLSRC/QCSRC) SRCMBR(SPOOLDATA) +
-          MODULE(SQLTOOLS/ST_SPOOLDATA) +
-          INCDIR('/') OPTIMIZE(40)
-
-CRTSRVPGM or CRTPGM as needed, then run SPOOLDATA.SQL
-```
-
+Several assumptions are included in the above BLDUDTF command:
+- The target (object) library is SQLTOOLS (SQLTOOLS is the recommended target library)
+- The source code is in library SQLTOOLSRC (although it can be any library)
+- No Debug info is stored. Use DBGVIEW(*SOURCE) if you need to debug.
+- The DROP parameter is *NO since most of the UDTFs use `CREATE or REPLACE FUNCTION` and therefore do not strictly need to be dropped ahead of time. If you have issues building, specify `DROP(*YES)` and try the build again.
 ---
 
 ## License
 
-Copyright (c) 1992-2025 Robert Cozzi Jr.
+Copyright (c) 1992-2026 Robert Cozzi Jr.
 Released under the MIT License — see [LICENSE](LICENSE).

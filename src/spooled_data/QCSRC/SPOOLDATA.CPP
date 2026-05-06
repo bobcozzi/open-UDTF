@@ -22,7 +22,7 @@
 #include <QSPGETSP.h>
 #include <QSPCLOSP.h>
 
-#include <COZUTILS.h>    -- Shared SQL Tools Utilities include file
+#include <COZUTILS.h>    // Shared SQL Tools Utilities include file
 
 #include <SQL.h>
 #include <SQLUDF.h>

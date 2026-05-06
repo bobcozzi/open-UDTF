@@ -2,9 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.0] - 2026-05-06
+- Corrected initial naming consistency and folder structures
+
 ## [1.2.0] - 2026-05-06
 -`/src/h/cozutils.h` replaces the old include file name. This allows it to be more properly named as we add more UDTFs to this repo and use that same include file.
-- The `BLDUDTF` command and its CLLE command processing program were updated and completed. They now support a full build processs for the SPOOL_DATA UDTF and future functions we add to this repo.
+- The `BLDUDTF` command and its CLLE command processing program were updated and completed. They now support a full build process for the SPOOL_DATA UDTF and future functions we add to this repo.
 - Note: Currently the BLDUDTF allows you to specify the Object Library (OBJLIB), however the SQL UDTF source `SPOOLDATA.SQL` that contains the initial `SPOOLED_DATA` function currently hard codes its schema/library as `SQLTOOLS`. This will change in the future. But for now, if you don't want to use `SQLTOOLS` as the library/schema name, then you will need to manually change `SQLTOOLS` in the `SPOOLDATA.SQL` source to your preferred schema/library name.
 
 ## [1.1.0] - 2026-05-05
