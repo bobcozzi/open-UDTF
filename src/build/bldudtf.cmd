@@ -22,6 +22,14 @@
                           PROMPT('Source library')
              PARM       KWD(OBJLIB) TYPE(*CHAR) LEN(10) +
                           DFT(SQLTOOLS) PROMPT('Target Library')
+
+                    /* If dependent objects do not exist always build them.  */
+                    /*    1=Bind only*                             */
+                    /*    2=Build/Refresh the dependent objects    */
+                    /* *If DEP objects don't exist, they are always be built */
+             PARM       KWD(BLDDEP) TYPE(*CHAR) LEN(1) DFT(*BIND) +
+                          SPCVAL((*BIND '1') (*REFRESH '2')) +
+                          EXPR(*YES) PROMPT('DEP OBJs Bind or refresh+Bind')
              PARM       KWD(DBGVIEW) TYPE(*CHAR) LEN(8) RSTD(*YES) +
                           DFT(*SOURCE) SPCVAL((*NONE) +
                           (*STMT) (*SOURCE) (*LIST)) PROMPT('Debug +

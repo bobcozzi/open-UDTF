@@ -1,5 +1,5 @@
 BLDUDTF:     PGM        PARM(&UDTF &EXTPGM &EXTPGMSRC &EXTPGMMBR +
-                             &UDTFSRC &OBJLIB &DBGVIEW &DROP &SPECNAME)
+                             &UDTFSRC &OBJLIB &BLDDEP &DBGVIEW &DROP &SPECNAME)
                    dcl &udtf *char 10
                    dcl &extpgm *char 10
                    dcl &extpgmsrc *char 20
@@ -10,6 +10,8 @@ BLDUDTF:     PGM        PARM(&UDTF &EXTPGM &EXTPGMSRC &EXTPGMMBR +
                    dcl &srctype *char 10
                    dcl &extpgmlib *char 10
                    dcl &drop      *lgl  1
+                   dcl &bldDep    *char 1
+                   dcl &buildDep  *lgl  1 VALUE('1')
                    dcl &specName  *char 128
                    dcl &inline *char 10 value('*ON')
                    dcl &OPTIMIZE *char 8 value('30')
@@ -29,30 +31,54 @@ BLDUDTF:     PGM        PARM(&UDTF &EXTPGM &EXTPGMSRC &EXTPGMMBR +
                           01 10)) MBR(&EXTPGMMBR) +
                           RTNLIB(&EXTPGMLIB) SRCTYPE(&SRCTYPE)
 
+             ADDLIBLE   LIB(&EXTPGMLIB) POSITION(*FIRST)
+             MONMSG     MSGID(CPF0000)
+
              IF (&DROP = '1') THEN(DO)
                IF (&SPECNAME = '*UDTF') THEN(DO)
                  CHGVAR VAR(&SPECNAME) VALUE(&UDTF)
                ENDDO
-             RUNSQL     SQL('DROP FUNCTION' *BCAT &OBJLIB *TCAT '.' +
-                          *CAT &SPECNAME) COMMIT(*NONE) NAMING(*SYS)
-             MONMSG     MSGID(CPF0000)
+               RUNSQL     SQL('DROP FUNCTION' *BCAT &OBJLIB *TCAT '.' +
+                            *CAT &SPECNAME) COMMIT(*NONE) NAMING(*SYS)
+               MONMSG     MSGID(CPF0000)
+             ENDDO
+                /* 1=Bind (build only if missing) 2=Rebuild and bind  */
+ CHECKDEP:   IF (&BLDDEP = '1') THEN(DO)
+               CHKOBJ     OBJ(&OBJLIB/OBJLIST) OBJTYPE(*MODULE)
+               MONMSG     MSGID(CPF0000) EXEC(DO)
+                 CHGVAR     VAR(&BUILDDEP) VALUE('1')
+               ENDDO
+             ENDDO
+             IF (&BLDDEP = '2' *OR &BUILDDEP = '1') THEN(DO)
+ BLDDEP:     CRTCPPMOD  MODULE(&OBJLIB/OBJLIST) +
+                          SRCFILE(&EXTPGMLIB/%SST(&EXTPGMSRC 1 10)) +
+                          SRCMBR(*MODULE) OUTPUT(*PRINT) +
+                          OPTION(*RTTIALL *SHOWSRC *SHOWINC) +
+                          OPTIMIZE(&OPTIMIZE) INLINE(&INLINE) +
+                          DBGVIEW(&DBGVIEW) DEFINE('__MULTI__' +
+                          '_MULTI_THREADED') LANGLVL(*EXTENDED0X) +
+                          SYSIFCOPT(*IFS64IO) MSGLMT(*NOMAX 20) +
+                          REPLACE(*YES) TGTRLS(*CURRENT) +
+                          TERASPACE(*YES *TSIFC) STGMDL(*INHERIT) +
+                          DTAMDL(*P128) PACKSTRUCT(16) WEAKTMPL(*YES)
              ENDDO
 
              IF (&SRCTYPE = 'CPP') THEN(DO)
  CRTCPP:     CRTCPPMOD  MODULE(&OBJLIB/&EXTPGM) +
                           SRCFILE(&EXTPGMLIB/%SST(&EXTPGMSRC 1 10)) +
                           SRCMBR(&EXTPGMMBR) OUTPUT(*PRINT) +
-                          OPTION(*RTTIALL *SHOWSRC) OPTIMIZE(&OPTIMIZE) +
-                          INLINE(*ON) DBGVIEW(&DBGVIEW) +
-                          DEFINE('__MULTI__' '_MULTI_THREADED') +
-                          LANGLVL(*EXTENDED0X) SYSIFCOPT(*IFS64IO) +
-                          MSGLMT(*NOMAX 20) REPLACE(*YES) +
-                          TGTRLS(*CURRENT) TERASPACE(*YES *TSIFC) +
-                          STGMDL(*INHERIT) DTAMDL(*P128) +
-                          PACKSTRUCT(16) WEAKTMPL(*YES)
+                          OPTION(*RTTIALL *SHOWSRC *SHOWINC) +
+                          OPTIMIZE(&OPTIMIZE) INLINE(&INLINE) +
+                          DBGVIEW(&DBGVIEW) DEFINE('__MULTI__' +
+                          '_MULTI_THREADED') LANGLVL(*EXTENDED0X) +
+                          SYSIFCOPT(*IFS64IO) MSGLMT(*NOMAX 20) +
+                          REPLACE(*YES) TGTRLS(*CURRENT) +
+                          TERASPACE(*YES *TSIFC) STGMDL(*INHERIT) +
+                          DTAMDL(*P128) PACKSTRUCT(16) WEAKTMPL(*YES)
              ENDDO
 
-             CRTPGM     PGM(&OBJLIB/&UDTF) ACTGRP(*CALLER) +
+             CRTPGM     PGM(&OBJLIB/&UDTF) MODULE(&OBJLIB/OBJLIST) +
+                          ENTMOD(&OBJLIB/&UDTF) ACTGRP(*CALLER) +
                           OPTION(*DUPPROC *DUPVAR) ALWLIBUPD(*YES) +
                           USRPRF(*USER) REPLACE(*YES) STGMDL(*INHERIT)
  CRTFUNC:

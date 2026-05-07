@@ -22,6 +22,7 @@ BLDUDTF  UDTF(member-name)
          EXTPGMMBR(*EXTPGM | member-name)
          UDTFSRC(source-file / source-library)
          OBJLIB(library-name)
+         BLDDEP(*BIND | *REFRESH)
          DBGVIEW(*SOURCE | *NONE | *STMT | *LIST)
          DROP(*NO | *DROP | *YES)
          SPECNAME(*UDTF | specific-name)
@@ -118,6 +119,24 @@ The library where the compiled module and program objects are placed.
 
 ---
 
+### BLDDEP — Dependent Object Build Control
+
+| Attribute | Value |
+|-----------|-------|
+| Type | `*CHAR` (special values) |
+| Default | `*BIND` |
+| Values | `*BIND`, `*REFRESH` |
+
+Controls whether shared dependent `*MODULE` objects (e.g. `OBJLIST`) are
+recompiled before the main program is linked.
+
+| Value | Behavior |
+|-------|----------|
+| `*BIND` *(default)* | Checks whether the dependent module already exists (`CHKOBJ`). Compiles it only if it is missing; skips compilation dependent objects if they exist. Use this for faster iterative builds when only the main UDTF source has changed. |
+| `*REFRESH` | Always recompiles the shared dependent modules before linking. Use this after modifying any shared header (e.g. `COZUTILS.H`, `OBJLIST.H`) that the dependent module depends on. |
+
+---
+
 ### DBGVIEW — Debug View
 
 | Attribute | Value |
@@ -205,7 +224,22 @@ BLDUDTF
   │      Runs:  DROP FUNCTION objlib.specname
   │      (errors from DROP are locally monitored and ignored)
   │
-  ├─5─ Compile module (when SRCTYPE = CPP)
+  ├─5─ Build dependent shared module (controlled by BLDDEP)
+  │      BLDDEP(*BIND)    → CHKOBJ OBJLIB/OBJLIST *MODULE
+  │                           • Dependencies missing → compile them
+  │                           • present → skip (use existing module)
+  │      BLDDEP(*REFRESH) → always compiles dependencies
+  │      CRTCPPMOD MODULE(OBJLIB/OBJLIST)
+  │                SRCFILE(EXTPGMLIB/file)
+  │                SRCMBR(OBJLIST)
+  │                LANGLVL(*EXTENDED0X)
+  │                TERASPACE(*YES *TSIFC)
+  │                STGMDL(*INHERIT)
+  │                DTAMDL(*P128)
+  │                PACKSTRUCT(16)
+  │                DBGVIEW(DBGVIEW)
+  │
+  ├─6─ Compile main UDTF module (when SRCTYPE = CPP)
   │      CRTCPPMOD MODULE(OBJLIB/EXTPGM)
   │                SRCFILE(EXTPGMLIB/file)
   │                SRCMBR(EXTPGMMBR)
@@ -217,14 +251,16 @@ BLDUDTF
   │                DBGVIEW(DBGVIEW)
   │                ...
   │
-  ├─6─ Create program
+  ├─7─ Create program
   │      CRTPGM PGM(OBJLIB/UDTF)
+  │             MODULE(OBJLIB/OBJLIST)   ← shared dep module bound in
+  │             ENTMOD(OBJLIB/UDTF)      ← main module is the entry point
   │             ACTGRP(*CALLER)
   │             USRPRF(*USER)
   │             STGMDL(*INHERIT)
   │             REPLACE(*YES)
   │
-  └─7─ Register SQL function
+  └─8─ Register SQL function
          RUNSQLSTM SRCFILE(UDTFSRC-lib/UDTFSRC-file)
                    SRCMBR(UDTF)
                    COMMIT(*NONE)
@@ -307,6 +343,32 @@ function does not yet exist) are ignored.
 
 ---
 
+### Rebuild only if dependent modules are missing
+
+```
+BLDUDTF UDTF(FIELDLIST) EXTPGM(FIELDLIST)
+        BLDDEP(*BIND)
+```
+
+Skips recompiling the shared `OBJLIST` module if it already exists in `OBJLIB`.
+Useful for faster iterative builds when only `FIELDLIST.CPP` changed and the
+shared utilities in `OBJLIST` are unchanged.
+
+---
+
+### Force rebuild of dependent modules
+
+```
+BLDUDTF UDTF(FIELDLIST) EXTPGM(FIELDLIST)
+        BLDDEP(*REFRESH)
+```
+
+Always recompiles `OBJLIST` before linking — use this after modifying any
+shared header (e.g. `COZUTILS.H`, `OBJLIST.H`) that the dependent module
+depends on.
+
+---
+
 ### Development build with source-level debug
 
 ```
@@ -350,6 +412,7 @@ or `RUNSQLSTM`).  The `DROP FUNCTION` SQL statement has its own local
 |--------|------|---------|
 | `BLDUDTF` | `*CMD` | The command described in this document |
 | `BLDUDTF` | `*PGM` | CL program that implements the command |
+| `OBJLIST` | `*MODULE` | Shared dependent module bound into every UDTF program |
 | `QCSRC` | `*FILE` | Default source file for C/C++ source members |
 | `QUDFSRC` / `QSQLSRC` | `*FILE` | Default source files for SQL `CREATE FUNCTION` DDL |
 | `SQLTOOLS` | `*LIB` | Default library for all objects |

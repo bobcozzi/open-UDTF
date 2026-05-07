@@ -2,8 +2,39 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.0] - 2026-05-07
+
+### Added
+- **New UDTF: FILE_FIELDS** — `src/FILE_FIELDS/FIELDLIST.CPP`, `FIELDLIST.SQL`,
+  `FIELDLIST.MD`. Returns field metadata (name, type, length, etc.) for any
+  database file on the system.
+- `src/shared/h/OBJLIST.H` and `src/shared/QCSRC/objlist.cpp` — shared module
+  source bound into every UDTF program via `CRTPGM MODULE(OBJLIB/OBJLIST)`.
+- `BLDUDTF` command: new `BLDDEP` parameter controls dependent-module build
+  behavior:
+  - `*BIND` *(default)* — checks if `OBJLIB/OBJLIST *MODULE` already exists
+    (`CHKOBJ`); skips compile if present, builds only if missing.
+  - `*REFRESH` — always recompiles `OBJLIB/OBJLIST` before linking; use after
+    modifying shared headers such as `COZUTILS.H` or `OBJLIST.H`.
+- `BLDUDTF.CLLE`: `CRTPGM` now binds `MODULE(&OBJLIB/OBJLIST)` with
+  `ENTMOD(&OBJLIB/&UDTF)` so the shared module is always included. Added
+  `ADDLIBLE` for the source library before compilation.
+- `src/shared/h/COZUTILS.H`: `coz_TEMP_USRSPACE` now calls `QUSCUSAT` with
+  key=3 (`AutoExtend='1'`) immediately after `QUSCRTUS`, preventing MCH0601
+  user-space overflow at runtime.
+- `src/shared/h/COZUTILS.H`: added `coz_rmvmsg()` free function and
+  `coz::RMVMSG()` wrapper — removes the most-recent job-log message (e.g.
+  CPC2206 owner-change completion message) using `QMHRCVPM`/`QMHRMVPM`.
+
+### Changed
+- `BLDUDTF.MD`: fully documented `BLDDEP` parameter (table, step-by-step
+  flow, examples, and Related Objects updated to include `OBJLIST *MODULE`).
+- `BLDUDTF.CLLE`: `CRTCPPMOD` options aligned between dep-module and main-
+  module builds (`*SHOWINC` added, `INLINE`/`OPTIMIZE` now driven by
+  `&DBGVIEW`).
+
 ## [1.3.0] - 2026-05-06
-- Corrected initial naming consistency and folder structures
+- Corrected initial naming consistency and folder structures.
 
 ## [1.2.0] - 2026-05-06
 -`/src/h/cozutils.h` replaces the old include file name. This allows it to be more properly named as we add more UDTFs to this repo and use that same include file.

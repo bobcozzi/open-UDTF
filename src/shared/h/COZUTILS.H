@@ -7,6 +7,9 @@
 #ifndef _COZUTILS_H_
 #define _COZUTILS_H_
 
+#include <sys/time.h>
+#include <sys/types.h>
+
 #pragma datamodel(P128)
 
 #include <stdlib.h>
@@ -14,23 +17,39 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <algorithm>
+#include <vector>
 #include <string>
 
 #include <qusec.h>
 #include <QUSCRTUS.h>
+#include <QUSCUSAT.h>
 #include <QUSPTRUS.h>
 #include <QLIDLTO.h>
+#include <QWCCVTDT.h>
+#include <lecond.h>
+#include <except.h>
+#include <qdbrtvsn.h>
+
 #include <qgyolspl.h>
 #include <qgygtle.h>
 #include <qgyclst.h>
 #include <Qp0ztrc.h>
-#include <sqludf.h>
 #include <qlgcase.h>
 #include <QSPRILSP.h>
-#include "QMHSNDPM.H"
+#include <qmhsndpm.H>
+#include <QMHRCVPM.h>
+#include <QMHRMVPM.h>
+#include <qusrmbrd.h>
+#include <quslmbr.h>
+
+#include <micommon.mih>
 #include <cpybytes.mih>
 #include <triml.mih>
 #include <matpgmnm.mih>
+
+#include <sql.h>
+#include <sqludf.h>
+
 
 /* Case-conversion direction constants */
 #ifndef _TOUPPER
@@ -94,6 +113,30 @@ static int coz_s_wLF  =
     (int)(sizeof(coz_wLF)/sizeof(coz_wLF[0]));
 static int coz_s_wSCS =
     (int)(sizeof(coz_wSCS)/sizeof(coz_wSCS[0]));
+
+/* ============================================= */
+/* IBM i Open List handle types                  */
+/* (used by file-fields and other UDTFs)         */
+/* ============================================= */
+typedef char coz_listHANDLE[4];
+
+typedef _Packed struct coz_openHandles_tag {
+    int            count;
+    coz_listHANDLE handle[];
+} coz_openListHandles_t;
+
+/* Size constants (mirrors coz::MAX_SIZES enum)  */
+enum {
+    coz_MAXUSRSPACESIZE       = 16711568,
+    coz_MAXMEM15M             = 15662992,
+    coz_MAX2PARTNAME_LEN      = 20,
+    coz_MAXLONGNAME_LEN       = 128,
+    coz_MAXQUALLONGNAME_LEN   = 257,
+    coz_MAXSQLNAME_LEN        = 128,
+    coz_MAXQUALOBJNAME_LEN    = 21,
+    coz_MAXSYSOBJNAME_LEN     = 10,
+    coz_MAX2PARTSYSOBJNAME_LEN = 20
+};
 
 /* ============================================= */
 /* coz_qusec - IBM i standard error code wrapper */
@@ -535,7 +578,7 @@ static inline char* coz_getProdLib(char* p = NULL)
 /* coz_getPtrUsrSpace                            */
 /* Return pointer to user space data area.       */
 /* ============================================= */
-static inline void* coz_getPtrUsrSpace(
+static inline char* coz_getPtrUsrSpace(
     const char* p2PartUsrSpaceName)
 {
     void*     pUS = NULL;
@@ -543,7 +586,7 @@ static inline void* coz_getPtrUsrSpace(
     ec.init();
     QUSPTRUS((char*)p2PartUsrSpaceName,
              &pUS, &ec);
-    if (ec.isEmpty()) return pUS;
+    if (ec.isEmpty()) return (char*)pUS;
     return NULL;
 }
 
@@ -554,8 +597,9 @@ static inline void* coz_getPtrUsrSpace(
 /* stores 20-char API name in rtnUSName[20].     */
 /* ============================================= */
 static inline char* coz_TEMP_USRSPACE(
-    char*       rtnUSName,
-    const char* objAttr = "SPLDATA")
+                                        char*       rtnUSName,
+                                        const char* objAttr = "SQLTOOLS",
+                                        int         initSize = 4096)
 {
     char qualName[21];
     char extAttr[11];
@@ -565,7 +609,6 @@ static inline char* coz_TEMP_USRSPACE(
     char domain[11];
     char initVal = 0x00;
     char* pUS   = NULL;
-    int   initSize = 4096;
     coz_qusec ec;
     std::string nm;
     size_t pos = 0;
@@ -591,6 +634,36 @@ static inline char* coz_TEMP_USRSPACE(
              &initVal, pubAut, text,
              repl, &ec, domain);
     if (ec.isEmpty()) {
+        /* Enable auto-extend so the space grows   */
+        /* automatically when APIs write past the  */
+        /* initial size (e.g. QDBRTVFD).           */
+        /* key=3 is AutoExtend; key=1=size,        */
+        /* key=2=InitChar, key=4=TransferSize.     */
+        typedef _Packed struct {
+            int  key;
+            int  dataLen;
+            union {
+                int  size;
+                int  transferSize;
+                char autoExtend;
+                char initValue;
+            };
+        } coz_spaceKey_t;
+        typedef _Packed struct {
+            int           count;
+            coz_spaceKey_t attr[1];
+        } coz_spaceAttr_t;
+        coz_spaceAttr_t spaceAttr;
+        spaceAttr.count          = 1;
+        spaceAttr.attr[0].key     = 3;
+        spaceAttr.attr[0].dataLen = 1;
+        spaceAttr.attr[0].autoExtend = '1';
+        char rtnLib[10];
+        memset(rtnLib, ' ', sizeof(rtnLib));
+        ec.init();
+        QUSCUSAT(rtnLib, qualName, &spaceAttr, &ec);
+        /* Non-fatal if QUSCUSAT fails — space     */
+        /* will still work, just won't auto-grow.  */
         ec.init();
         QUSPTRUS(qualName, (void**)&pUS, &ec);
     }
@@ -622,6 +695,515 @@ static inline void coz_DLTOBJ(
     QLIDLTO((char*)qualObjName,
             szObjType, szASP,
             rmvMsg, &ec);
+}
+
+/* ============================================= */
+/* coz_isAllHexZeros                             */
+/* Returns true when all sz bytes at ptr = 0x00 */
+/* ============================================= */
+static inline bool coz_isAllHexZeros(
+    const char* ptr, size_t sz)
+{
+    for (size_t i = 0; i < sz; i++)
+        if ((unsigned char)ptr[i] != 0x00)
+            return false;
+    return true;
+}
+
+/* ============================================= */
+/* coz_isAllBlanks                               */
+/* Returns true when all bytes are 0x40 or 0x20 */
+/* ============================================= */
+static inline bool coz_isAllBlanks(
+    const char* ptr, size_t sz)
+{
+    for (size_t i = 0; i < sz; i++)
+        if (ptr[i] != ' ' &&
+            (unsigned char)ptr[i] != 0x40)
+            return false;
+    return true;
+}
+
+/* coz_isAllBinZeros \Z alias for coz_isAllHexZeros */
+static inline bool coz_isAllBinZeros(
+    const char* ptr, size_t sz)
+{ return coz_isAllHexZeros(ptr, sz); }
+
+/* ============================================= */
+/* coz_isNotEmpty (2-arg free function)           */
+/* Returns true when buffer has any non-blank     */
+/* byte (not 0x20 or 0x40)                        */
+/* ============================================= */
+static inline bool coz_isNotEmpty(
+    const char* ptr, size_t sz)
+{
+    for (size_t i = 0; i < sz; i++)
+        if (ptr[i] != ' ' &&
+            (unsigned char)ptr[i] != 0x40)
+            return true;
+    return false;
+}
+
+/* ============================================= */
+/* coz_makeQual                                  */
+/* Build 20-char qualified name from separate    */
+/* object (10) and library (10) strings.         */
+/* ============================================= */
+static inline void coz_makeQual(
+    char*       dest,
+    const char* objName,
+    const char* libName)
+{
+    memset(dest, ' ', 20);
+    if (objName != NULL) {
+        int n = (int)strlen(objName);
+        if (n > 10) n = 10;
+        memcpy(dest,      objName, n);
+    }
+    if (libName != NULL) {
+        int n = (int)strlen(libName);
+        if (n > 10) n = 10;
+        memcpy(dest + 10, libName, n);
+    }
+}
+
+/* ============================================= */
+/* coz_makeAPIJobName                            */
+/* Parse JOB/USER/NBR string and populate the    */
+/* first 26 bytes of a Qwc_JIDF0100_t struct:    */
+/* Job_Name[10] User_Name[10] Job_Number[6]      */
+/* ============================================= */
+static inline void coz_makeAPIJobName(
+    char*       pJobStruct,
+    const char* jobName)
+{
+    char *pJob = pJobStruct;
+    char *pUsr = pJobStruct + 10;
+    char *pNbr = pJobStruct + 20;
+    memset(pJob, ' ', 10);
+    memset(pUsr, ' ', 10);
+    memset(pNbr, ' ',  6);
+    if (jobName == NULL || jobName[0] == '\0')
+        return;
+    const char* s1 = strchr(jobName, '/');
+    if (s1 == NULL) {
+        int n = (int)strlen(jobName);
+        if (n > 10) n = 10;
+        memcpy(pJob, jobName, n);
+    } else {
+        int n = (int)(s1 - jobName);
+        if (n > 10) n = 10;
+        memcpy(pJob, jobName, n);
+        const char* s2 = strchr(s1 + 1, '/');
+        if (s2 == NULL) {
+            int u = (int)strlen(s1 + 1);
+            if (u > 10) u = 10;
+            memcpy(pUsr, s1 + 1, u);
+        } else {
+            int u = (int)(s2 - (s1 + 1));
+            if (u > 10) u = 10;
+            memcpy(pUsr, s1 + 1, u);
+            int nb = (int)strlen(s2 + 1);
+            if (nb > 6) nb = 6;
+            memcpy(pNbr, s2 + 1, nb);
+        }
+    }
+}
+
+/* ============================================= */
+/* coz_getOSVer                                  */
+/* Returns IBM i OS version as integer           */
+/* e.g., 740 for V7R4M0.                         */
+/* ============================================= */
+static inline int coz_getOSVer()
+{
+    _INT4      osVer    = 0;
+    _INT4      platform = 0;
+    _FEEDBACK  fc;
+    CEEGPID(&osVer, &platform, &fc);
+    return (int)osVer;
+}
+
+/* ============================================= */
+/* coz_BCAT                                      */
+/* Blank-concatenate: appends " " + src to dest  */
+/* if dest is non-empty; otherwise just copies.  */
+/* Appends optional src2 the same way.           */
+/* ============================================= */
+static inline void coz_BCAT(
+    char*       dest,
+    const char* src1,
+    const char* src2 = NULL)
+{
+    if (src1 != NULL && strlen(src1) > 0) {
+        if (strlen(dest) > 0)
+            strcat(dest, " ");
+        strcat(dest, src1);
+    }
+    if (src2 != NULL && strlen(src2) > 0) {
+        if (strlen(dest) > 0)
+            strcat(dest, " ");
+        strcat(dest, src2);
+    }
+}
+
+/* ============================================= */
+/* coz_cvtSYSDTStoDTS                            */
+/* Convert IBM i system DTS (8 bytes) to an     */
+/* ISO-style timestamp string via QWCCVTDT.      */
+/* ============================================= */
+static inline char* coz_cvtSYSDTStoDTS(
+    char*       t,
+    const char* pDts,
+    bool        includeMicroSecs = false,
+    bool        includeTM        = true)
+{
+    static char dts[32];
+    if (t) memset(t, 0x00, 8);
+    memset(dts, 0x00, sizeof(dts));
+    if (pDts == NULL ||
+        coz_isAllBinZeros(pDts, 8) ||
+        coz_isAllBlanks(pDts, 8))
+    {
+        if (t) *t = 0x00;
+        return NULL;
+    }
+    char inFmt[11];
+    char outFmt[11];
+    char mSecsFlag[1] = {'1'};
+    Qwc_Time_Zone_Info_t rtnTZInfo;
+    memset(inFmt,  ' ', sizeof(inFmt));
+    _CPYBYTES(inFmt,  "*DTS",  4);
+    memset(outFmt, ' ', sizeof(outFmt));
+    _CPYBYTES(outFmt, "*YYMD", 5);
+    const char TZ_SYS[] = "*SYS      ";
+    const char TZ_JOB[] = "*JOB      ";
+    memset((char*)&rtnTZInfo, 0x00,
+           sizeof(rtnTZInfo));
+    coz_qusec ec;
+    ec.init();
+    QWCCVTDT(inFmt,  (char*)pDts,
+             outFmt, dts,
+             &ec,
+             TZ_SYS, TZ_JOB,
+             &rtnTZInfo, sizeof(rtnTZInfo),
+             mSecsFlag);
+    if (ec.isEmpty()) {
+        int yr=0, mo=0, dy=0;
+        int hr=0, mn=0, sc=0, ms=0;
+        int n = sscanf(dts,
+            "%4d%2d%2d%2d%2d%2d%6d",
+            &yr,&mo,&dy,&hr,&mn,&sc,&ms);
+        if (n < 6) return NULL;
+        if (includeMicroSecs)
+            sprintf(dts,
+                "%04d-%02d-%02d-%02d."
+                "%02d.%02d.%06d",
+                yr,mo,dy,hr,mn,sc,ms);
+        else if (includeTM)
+            sprintf(dts,
+                "%04d-%02d-%02d-%02d."
+                "%02d.%02d",
+                yr,mo,dy,hr,mn,sc);
+        else
+            sprintf(dts,
+                "%04d-%02d-%02d",
+                yr,mo,dy);
+        if (t != NULL && strlen(dts) > 0)
+            strcpy(t, dts);
+    } else {
+        memset(dts, 0x00, sizeof(dts));
+    }
+    return (strlen(dts) > 0) ? dts : NULL;
+}
+
+/* ============================================= */
+/* coz_copyAtoB                                  */
+/* Copy min(maxTarget,maxSource) bytes from s   */
+/* to t; stop at any char in stopAt.             */
+/* Target is blank-padded to maxTargetLen.       */
+/* ============================================= */
+static inline int coz_copyAtoB(
+    char*       t,
+    const int   maxTargetLen,
+    const char* s,
+    const int   maxSourceLen = 10,
+    const char* stopAt = " ")
+{
+    int bStop  = 0;
+    int rtnLen = 0;
+    int maxLen = (maxTargetLen < maxSourceLen)
+                  ? maxTargetLen : maxSourceLen;
+    memset(t, ' ', maxTargetLen);
+    for (int i=0; s[i]!=0x00 && i<maxLen; i++) {
+        if (stopAt != NULL) {
+            for (size_t j=0; j<strlen(stopAt); j++)
+                if (s[i]==stopAt[j]) bStop=1;
+        }
+        if (bStop) break;
+        t[i] = s[i];
+        rtnLen++;
+    }
+    return rtnLen;
+}
+
+/* ============================================= */
+/* coz_splitFormat                               */
+/* Split a delimited list into fixed-width       */
+/* entries written into pFixed.                  */
+/* ============================================= */
+static inline int coz_splitFormat(
+    char*       pFixed,
+    const char* pValues,
+    int         entryLen   = 10,
+    int         inLength   = -1,
+    int         leadAction = 2,
+    const char* delims     = " ,\n",
+    const char  leadChar   = '*')
+{
+    int bufLen = (inLength <= 0)
+                  ? (int)strlen(pValues)
+                  : inLength;
+    if (bufLen <= 0) return 0;
+    std::vector<char> buf(
+        pValues, pValues + bufLen);
+    if (buf.back() != '\0')
+        buf.push_back('\0');
+    std::vector<char> dynoDelims;
+    if (delims == NULL || strlen(delims)==0) {
+        const char* def = " ,;\n";
+        dynoDelims.assign(
+            def, def + strlen(def));
+    } else {
+        dynoDelims.assign(
+            delims, delims + strlen(delims));
+    }
+    if (delims && strchr(delims,'\n')) {
+        dynoDelims.push_back(0x25);
+        dynoDelims.push_back(0x15);
+    }
+    if (!dynoDelims.empty() &&
+        dynoDelims.back() != '\0')
+        dynoDelims.push_back('\0');
+    char* pData    = &buf[0];
+    int   counter  = 0;
+    int   nextEntry = 0;
+    char* saveptr  = NULL;
+    char* token    =
+        strtok_r(pData, &dynoDelims[0], &saveptr);
+    while (token != NULL) {
+        memset(pFixed + nextEntry, ' ', entryLen);
+        switch (leadAction) {
+            case 0:
+                if (*token == leadChar) token++;
+                break;
+            case 1:
+                if (*token != leadChar) {
+                    *(pFixed+nextEntry) = leadChar;
+                    pFixed++;
+                }
+                break;
+            default: break;
+        }
+        _CPYBYTES(pFixed + nextEntry,
+                  token, strlen(token));
+        nextEntry += entryLen;
+        counter++;
+        token = strtok_r(
+            NULL, &dynoDelims[0], &saveptr);
+    }
+    pFixed[nextEntry] = '\0';
+    return counter;
+}
+
+/* ============================================= */
+/* coz_getSysObjName                             */
+/* Resolve long SQL name to 20-byte short API    */
+/* format "OBJNAME   LIBNAME   " via QDBRTVSN.   */
+/* If longLibrary is NULL, returns only the      */
+/* short lib name for longObjectName.            */
+/* ============================================= */
+static inline char* coz_getSysObjName(
+    const char* longObjectName,
+    const char* longLibrary = NULL)
+{
+    static char result[21];
+    char szLongName[129];
+    char szShortName[21];
+    char szLibName[11];
+    int  nameLen  = 0;
+    int  bGeneric = 0;
+    coz_qusec ec;
+    memset(result,    ' ', 20);
+    result[20] = 0x00;
+    memset(szLibName, ' ', sizeof(szLibName));
+    /* Determine what to resolve first */
+    const char* first =
+        (longLibrary == NULL ||
+         strlen(longLibrary) == 0)
+        ? longObjectName : longLibrary;
+    nameLen = coz_copyAtoB(
+        szLongName, 128, first, 128, NULL);
+    szLongName[nameLen] = 0x00;
+    coz_toUpper(szLongName, nameLen);
+    bGeneric =
+        (memchr(szLongName,'*',nameLen)!=NULL)
+        ? 1 : 0;
+    if (!bGeneric &&
+        szLongName[0] != '*' &&
+        nameLen > coz_MAXSYSOBJNAME_LEN)
+    {
+        memset(szShortName,' ',sizeof(szShortName));
+        ec.init();
+        QDBRTVSN(szShortName,
+                 szLongName, nameLen,
+                 szLibName, &ec);
+        if (ec.isEmpty())
+            coz_copyPad(szLibName,
+                        szShortName,
+                        coz_MAXSYSOBJNAME_LEN);
+        else
+            coz_copyPad(szLibName,
+                        szLongName,
+                        coz_MAXSYSOBJNAME_LEN);
+    } else {
+        coz_copyPad(szLibName,
+                    szLongName,
+                    coz_MAXSYSOBJNAME_LEN);
+    }
+    /* Library-only case */
+    if (longLibrary == NULL ||
+        strlen(longLibrary) == 0)
+    {
+        coz_copyPad(result, szLibName, 10);
+        return result;
+    }
+    /* Resolve the object name */
+    if (longObjectName != NULL &&
+        strlen(longObjectName) > 0)
+    {
+        nameLen = coz_copyAtoB(
+            szLongName, 128,
+            longObjectName, 128, NULL);
+        szLongName[nameLen] = 0x00;
+        coz_nameUpper(szLongName);
+        bGeneric =
+            (memchr(szLongName,'*',nameLen)!=NULL)
+            ? 1 : 0;
+        if (!bGeneric && nameLen >
+            coz_MAXSYSOBJNAME_LEN)
+        {
+            memset(szShortName,' ',
+                   sizeof(szShortName));
+            ec.init();
+            QDBRTVSN(szShortName,
+                     szLongName, nameLen,
+                     szLibName, &ec);
+            if (ec.isEmpty())
+                _CPYBYTES(result,
+                          szShortName, 20);
+            else {
+                coz_copyPad(result,    szLongName, 10);
+                coz_copyPad(result+10, szLibName,  10);
+            }
+        } else {
+            coz_copyPad(result,    szLongName, 10);
+            coz_copyPad(result+10, szLibName,  10);
+        }
+    }
+    return result;
+}
+
+/* ============================================= */
+/* coz_makeAPIObjNameFromLongName                */
+/* Build a 20-byte API name from a long/short    */
+/* qualified SQL name, resolving via QDBRTVSN.   */
+/* ============================================= */
+static inline void coz_makeAPIObjNameFromLongName(
+    char*       objName,
+    const char* qualObj,
+    const char* dftLib = "*LIBL")
+{
+    char longName[129];
+    char longLib[129];
+    memset(objName,  ' ',
+           coz_MAX2PARTSYSOBJNAME_LEN);
+    /* Split on '/' or '.' */
+    const char* slash = strchr(qualObj, '/');
+    if (slash == NULL)
+        slash = strchr(qualObj, '.');
+    const char* firstBlank = strchr(qualObj, ' ');
+    if (firstBlank != NULL && slash != NULL &&
+        firstBlank < slash)
+        slash = NULL;
+    if (slash != NULL) {
+        int libLen = (int)(slash - qualObj);
+        coz_copyUntil(longName,
+                      qualObj + libLen + 1,
+                      coz_MAXSQLNAME_LEN);
+        coz_copyUntil(longLib,
+                      qualObj, libLen);
+    } else {
+        coz_copyUntil(longName,
+                      qualObj,
+                      coz_MAXSQLNAME_LEN, " ");
+        if (dftLib == NULL)
+            coz_copyUntil(longLib,
+                          "*LIBL", 5);
+        else
+            coz_copyUntil(longLib,
+                          dftLib,
+                          coz_MAXSQLNAME_LEN);
+    }
+    char* pResult =
+        coz_getSysObjName(longName, longLib);
+    _CPYBYTES(objName, pResult, 20);
+}
+
+/* ============================================= */
+/* coz_makeQualListFromLongName                  */
+/* Parse a space/comma-delimited list of long    */
+/* SQL file names and write 20-byte API names    */
+/* into pQualList.  Returns the count of names.  */
+/* ============================================= */
+static inline int coz_makeQualListFromLongName(
+    char*       pQualList,
+    char*       pObjList,
+    const char* pDftLib = NULL)
+{
+    char qualObj[coz_MAX2PARTNAME_LEN + 1];
+    char dftLib[11];
+    coz_copyPad(dftLib, "*LIBL", 10);
+    if (pDftLib != NULL && strlen(pDftLib) > 0)
+        coz_copyPad(dftLib, pDftLib, 10);
+    int objCount = coz_splitFormat(
+        pQualList, pObjList,
+        coz_MAXQUALLONGNAME_LEN);
+    for (int x = 0; x < objCount; x++) {
+        memset(qualObj, ' ', sizeof(qualObj));
+        coz_makeAPIObjNameFromLongName(
+            qualObj,
+            pQualList +
+              (x * coz_MAXQUALLONGNAME_LEN),
+            dftLib);
+        _CPYBYTES(
+            pQualList +
+              (x * coz_MAX2PARTNAME_LEN),
+            qualObj,
+            coz_MAX2PARTNAME_LEN);
+    }
+    return objCount;
+}
+
+/* ============================================= */
+/* resignalMsg (global scope)                    */
+/* Free-function alias so code that calls        */
+/* resignalMsg(ec) without namespace prefix      */
+/* compiles when ec is coz_qusec / coz::qusec.   */
+/* ============================================= */
+static inline void resignalMsg(coz_qusec& ec)
+{
+    coz_resignalMsg(ec);
 }
 
 /* ============================================= */
@@ -959,6 +1541,21 @@ static inline int coz_readSPLine(
 #ifndef _COZ_PARM_MACROS_
 #define _COZ_PARM_MACROS_
 
+#define inCLOB(_v) \
+    SQLUDF_CLOB *in##_v = \
+        (SQLUDF_CLOB*)coz_getNextParmIf(\
+            p,argc,argv)
+#define inDBCLOB(_v) \
+    SQLUDF_DBCLOB *in##_v = \
+        (SQLUDF_DBCLOB*)coz_getNextParmIf(\
+            p,argc,argv)
+#define outDts(_v) \
+    char *out##_v = \
+        (char*)coz_getNextParmIf(\
+            p,argc,argv,26)
+/* outVarchar \Z lowercase-r alias for outVarChar */
+#define outVarchar(_v) outVarChar(_v)
+
 #define inParm(_v) \
     char *in##_v = \
         (char*)coz_getNextParmIf(p,argc,argv)
@@ -1069,6 +1666,241 @@ static inline int coz_readSPLine(
             p,argc,argv,2)
 
 #endif /* _COZ_PARM_MACROS_ */
+
+/* ============================================= */
+/* UDF termination/signaling macros              */
+/* These macros reference locals that must exist */
+/* in the calling scope: sqlstate, sqlmsgtext,   */
+/* pScratch (for signalEOFFunc), errno           */
+/* ============================================= */
+#ifndef _ST_UDF_TERMINATION_
+#define _ST_UDF_TERMINATION_
+#define logStrerror() \
+        Qp0zLprintf("errno(%d) %s\n", errno, strerror(errno))
+#define signalEndFunc() \
+        ::strcpy(sqlmsgtext, strerror(errno)); \
+        ::strcpy(sqlstate, "02000")
+#define signalEOFFunc() \
+        ::strcpy(sqlmsgtext, strerror(errno)); \
+        ::strcpy(sqlstate, "02000"); \
+        pScratch->eof = 1
+#endif /* _ST_UDF_TERMINATION_ */
+
+/* ============================================= */
+/* coz_rmvmsg                                    */
+/* Remove a message from the job log.            */
+/* Typically used after QUSCRTUS to suppress the */
+/* CPC2206 "Owner Changed" completion message.   */
+/* msgtype: e.g. "*COMP", "*PRVJLMSG" (default) */
+/* msgkey:  4-byte msg key, or NULL              */
+/* Returns 1=removed (or no match), 0=API error  */
+/* ============================================= */
+static inline int coz_rmvmsg(
+    const char* msgtype,
+    const char* msgkey)
+{
+    coz_qusec              ec;
+    int                    callStackCounter = 0;
+    char                   callStack[10];
+    char                   msgType[11];
+    char                   msgKey[4];
+    Qmh_Rcvpm_RCVM0100_t   msgInfo;
+
+    memset(callStack, ' ', sizeof(callStack));
+    memset(msgType,   ' ', sizeof(msgType));
+    memset(msgKey,  0x00,  sizeof(msgKey));
+    memset(&msgInfo,0x00,  sizeof(msgInfo));
+
+    callStack[0]     = '*';
+    callStackCounter = 0;
+
+    if (msgtype != NULL && msgtype[0] != ' ' &&
+        strlen(msgtype) > 0)
+    {
+        size_t mlen = strlen(msgtype);
+        if (mlen > 10) mlen = 10;
+        _CPYBYTES(msgType, msgtype, (int)mlen);
+    }
+    else
+    {
+        _CPYBYTES(msgType, "*PRVJLMSG ", 10);
+    }
+
+    if (msgkey != NULL)
+        _CPYBYTES(msgKey, msgkey, 4);
+
+    ec.init();
+    QMHRCVPM(&msgInfo, sizeof(msgInfo),
+             "RCVM0100",
+             callStack, callStackCounter,
+             msgType, msgKey,
+             0,          /* wait time: 0 = no wait */
+             "*SAME     ", &ec);
+
+    if (ec.hasError())
+        return 0;
+
+    if (memcmp(msgInfo.Message_Id, "CPC2206", 7) == 0)
+    {
+        ec.init();
+        QMHRMVPM(callStack, callStackCounter,
+                 msgInfo.Message_Key,
+                 "*BYKEY    ", &ec);
+    }
+    return 1;
+}
+
+/* ============================================= */
+/* namespace coz \Z compatibility wrapper         */
+/* Allows code written against the original      */
+/* coz:: namespace (S_NS_COZ.H) to compile when  */
+/* COZUTILS.H is substituted in its place.       */
+/* Only the types and functions used by the      */
+/* open-UDTF project are provided here.          */
+/* ============================================= */
+#ifndef _COZ_COMPAT_NS_
+#define _COZ_COMPAT_NS_
+namespace coz {
+
+    /* ---- types ---- */
+    typedef coz_listHANDLE        listHANDLE;
+    typedef coz_openListHandles_t openListHandles_t;
+    typedef coz_qusec             qusec;
+
+    /* ---- size constants ---- */
+    enum MAX_SIZES {
+        MAXUSRSPACESIZE       = coz_MAXUSRSPACESIZE,
+        MAXMEM15M             = coz_MAXMEM15M,
+        MAX2PARTNAME_LEN      = coz_MAX2PARTNAME_LEN,
+        MAXLONGNAME_LEN       = coz_MAXLONGNAME_LEN,
+        MAXQUALLONGNAME_LEN   = coz_MAXQUALLONGNAME_LEN,
+        MAXSQLNAME_LEN        = coz_MAXSQLNAME_LEN,
+        MAXQUALOBJNAME_LEN    = coz_MAXQUALOBJNAME_LEN,
+        MAXSYSOBJNAME_LEN     = coz_MAXSYSOBJNAME_LEN,
+        MAX2PARTSYSOBJNAME_LEN= coz_MAX2PARTSYSOBJNAME_LEN
+    };
+
+    /* ---- parameter helpers ---- */
+    static inline char* getNextParmIf(
+        int& p, int& argc, char** argv,
+        int f = 0)
+    { return coz_getNextParmIf(p,argc,argv,f); }
+
+    /* ---- string/name utilities ---- */
+    static inline void copyPad(
+        char* t, const char* s,
+        int len=10, char pc=' ')
+    { coz_copyPad(t,s,len,pc); }
+
+    static inline int copyUntil(
+        char* t, const char* s,
+        int maxLen=10,
+        const char* stopAt=NULL,
+        bool bTrim=false)
+    { return coz_copyUntil(t,s,maxLen,stopAt,bTrim); }
+
+    static inline void makeAPIObjName(
+        char* n, const char* q,
+        const char* d="*LIBL")
+    { coz_makeAPIObjName(n,q,d); }
+
+    static inline int toUpper(
+        char* s, int len=-1, int ccsid=0)
+    { return coz_toUpper(s,len,ccsid); }
+
+    static inline int nameUpper(
+        char* s, int len=-1)
+    { return coz_nameUpper(s,len); }
+
+    /* ---- IBM i object / user-space ---- */
+    static inline char* TEMP_USRSPACE(char* r,
+                                      const char* a="SQLTOOLS",
+                                      int sz=4096)
+    { return coz_TEMP_USRSPACE(r,a,sz); }
+
+    static inline char* getPtrUsrSpace(
+        const char* p)
+    { return coz_getPtrUsrSpace(p); }
+
+    static inline void DLTOBJ(
+        const char* q, const char* t,
+        const char* a="*")
+    { coz_DLTOBJ(q,t,a); }
+
+    /* ---- OS version ---- */
+    static inline int getOSVer()
+    { return coz_getOSVer(); }
+
+    /* ---- date/time ---- */
+    static inline char* cvtSYSDTStoDTS(
+        char* t, const char* p,
+        bool ms=false, bool tm=true)
+    { return coz_cvtSYSDTStoDTS(t,p,ms,tm); }
+
+    /* ---- string concat ---- */
+    static inline void BCAT(
+        char* d, const char* s1,
+        const char* s2=NULL)
+    { coz_BCAT(d,s1,s2); }
+
+    /* ---- object list helpers ---- */
+    static inline int makeQualListFromLongName(
+        char* q, char* l,
+        const char* d=NULL)
+    { return coz_makeQualListFromLongName(q,l,d); }
+
+    static inline bool isAllHexZeros(
+        const char* p, size_t s)
+    { return coz_isAllHexZeros(p,s); }
+
+    static inline bool isAllBinZeros(
+        const char* p, size_t s)
+    { return coz_isAllBinZeros(p,s); }
+
+    static inline bool isAllBlanks(
+        const char* p, size_t s)
+    { return coz_isAllBlanks(p,s); }
+
+    static inline bool isNotEmpty(
+        const char* p, size_t s)
+    { return coz_isNotEmpty(p,s); }
+
+    static inline void makeQual(
+        char* d, const char* o, const char* l)
+    { coz_makeQual(d,o,l); }
+
+    static inline void makeAPIJobName(
+        char* j, const char* n)
+    { coz_makeAPIJobName(j,n); }
+
+
+    /* ---- joblog ---- */
+    static inline void joblog(const char* fmt, ...)
+    {
+        char buf[4096];
+        va_list ap;
+        va_start(ap, fmt);
+        vsnprintf(buf, sizeof(buf) - 1, fmt, ap);
+        va_end(ap);
+        buf[sizeof(buf) - 1] = 0x00;
+        Qp0zLprintf("%s", buf);
+    }
+
+    static char buffer4k[4097];
+
+
+    /* ---- error signalling ---- */
+    static inline void resignalMsg(qusec& ec)
+    { coz_resignalMsg(ec); }
+
+    /* ---- job log message removal ---- */
+    static inline int RMVMSG(
+        const char* msgtype = "*COMP",
+        const char* msgkey  = NULL)
+    { return coz_rmvmsg(msgtype, msgkey); }
+
+} /* end namespace coz */
+#endif /* _COZ_COMPAT_NS_ */
 
 #pragma datamodel(pop)
 
