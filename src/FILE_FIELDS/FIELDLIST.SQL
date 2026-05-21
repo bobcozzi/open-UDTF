@@ -1,5 +1,7 @@
 
 
+-- @author BobCozzi
+
  CREATE or REPLACE FUNCTION sqltools.FIELD_LIST(
                               library_name  varchar(128) DEFAULT '*LIBL',
                               file_name     CLOB(1M),

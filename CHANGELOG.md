@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.0] - 2026-05-21
+
+### Added
+- **New UDTF: CMD_HELP** — `src/CMD_HELP/CMDHELP.CPP`, `cmdhelp.sql`,
+  `CMDHELP.MD`. Returns the HTML helptext for any CL command on the system
+  using `GENCMDDOC` under the covers.
+- **New UDTF: CMD_XML** — `src/CMD_XML/CMDXML.CPP`, `CMDXML.SQL`,
+  `CMDXML.MD`. Returns the raw XML command definition for any CL command
+  on the system by calling the `QCDRCMDD` API.
+- `@author BobCozzi` tag added to all `.cpp` and `.sql` source files across
+  CMD_HELP, CMD_XML, FILE_FIELDS, and spooled_data folders.
+
 ## [1.4.0] - 2026-05-07
 
 ### Added

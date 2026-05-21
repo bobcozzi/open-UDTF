@@ -5,6 +5,7 @@
 -- *SRVPGM - it is fully self-contained.
 -- Module: SQLTOOLS/ST_SPOOLDATA
 -- (c) 1992-2025 Robert Cozzi Jr.
+-- @author BobCozzi
 
 CREATE OR REPLACE FUNCTION sqltools.SPOOLED_DATA(
     SPLFNAME  VARCHAR(10)  DEFAULT '*LAST',
