@@ -1,8 +1,7 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 1996-2026 by R. Cozzi, Jr.
 
-///////// ///////// ///////// //////
-
-  // (c) Copyright 2017-2026 by R. Cozzi, Jr.  // @author BobCozzi
-///////// ///////// ///////// //////
+// @author BobCozzi
 
 
 #include <sys/time.h>

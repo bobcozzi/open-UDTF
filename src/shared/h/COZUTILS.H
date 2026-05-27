@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 1996-2026 by R. Cozzi, Jr.
+// @author BobCozzi
+
 // COZUTILS.H - Standalone spool-read utility helpers.
 // Replaces coz:: namespace for SPOOLDATA standalone UDTF.
 // All functions are static inline, using prefix coz_.
@@ -243,6 +247,10 @@ static inline void coz_makeAPIObjName(
     _CPYBYTES(objName + 10, LIBNAME, 10);
 }
 
+/* Forward declaration (defined below)           */
+static inline int coz_toUpper(char* szData,
+    int inLen = -1, int ccsid = 0);
+
 /* ============================================= */
 /* coz_nameUpper                                 */
 /* Converts non-quoted IBM i object name to      */
@@ -256,18 +264,7 @@ static inline int coz_nameUpper(
     int len = (inLen <= 0)
                   ? (int)strlen(szData) : inLen;
     if (szData[0] == q) return inLen;
-    Qlg_CCSID_ReqCtlBlk_T frcb;
-    coz_qusec ec;
-    long llen = len;
-    memset((char*)&frcb, 0x00, sizeof(frcb));
-    frcb.Type_of_Request  = 1;
-    frcb.Case_Request     = _TOUPPER;
-    frcb.CCSID_of_Input_Data = 0;
-    if (llen > 0)
-        QlgConvertCase((char*)&frcb,
-                       szData, szData,
-                       &llen, (char*)&ec);
-    return len;
+    return coz_toUpper(szData, len);
 }
 
 /* ============================================= */
@@ -1607,6 +1604,10 @@ static inline int coz_readSPLine(
     short *indy##_v = \
         (short*)coz_getNextParmIf(\
             p,argc,argv,2)
+
+#define outCLOB(_v)   SQLUDF_CLOB*   out##_v = (SQLUDF_CLOB*)   coz_getNextParmIf(p, argc, argv, 4)
+#define outBLOB(_v)   SQLUDF_CLOB*   out##_v = (SQLUDF_CLOB*)   coz_getNextParmIf(p, argc, argv, 4)
+#define outDBCLOB(_v) SQLUDF_DBCLOB* out##_v = (SQLUDF_DBCLOB*) coz_getNextParmIf(p, argc, argv, 4)
 
 #define outParm(_v) \
     char *out##_v = \

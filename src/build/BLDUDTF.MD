@@ -13,6 +13,9 @@ The Command Processing Program (CPP) **BLDUDTF.CLLE** carries out all four steps
 
 ---
 
+The target library can be any user-specified library name. The original `SQL Tools` product uses library `SQLTOOLS` and that has been specified here as the default object and source libraries. But it does not have to use that library. I keep my code in library `SQLTOOLSRC` (SQL Tools Source) instead of `SQLTOOLS`. I recommend you keep yours in these 2 libriaries or in another libray entirely.
+
+
 ## Syntax
 
 ```
@@ -41,7 +44,6 @@ BLDUDTF  UDTF(member-name)
 
 The name of the UDTF source member that contains the `CREATE FUNCTION` SQL
 statement (typically stored in `QUDFSRC` or `QSQLSRC`).
-This name is also used as the compiled program object name written to `OBJLIB`.
 
 ---
 
@@ -62,19 +64,19 @@ This must match the name coded in the `EXTERNAL NAME` clause of the
 
 | Attribute | Value |
 |-----------|-------|
-| Type | Qualified file name (`file / library`) |
+| Type | Qualified file name (`Libray / File`) |
 | Default file | `QCSRC` |
 | Default library | `SQLTOOLS` |
 
 The qualified source file that contains the C or C++ source member for the
-external program.  Specify as `source-file/source-library`, for example:
+external program.  Specify as `source-library/source-library`, for example:
 
 ```
-EXTPGMSRC(QCSRC/MYLIB)
+EXTPGMSRC(MYLIB/QCSRC)
 ```
 
 The command uses `RTVMBRD` against this file to determine the source member's
-actual source type (`CPP` vs. `C`) so it can choose the correct compiler.
+actual source type (`CPP` vs. `C`) and uses it to select the correct compiler.
 
 ---
 
@@ -100,7 +102,7 @@ name supplied on the `EXTPGM` parameter.
 | Default library | `SQLTOOLS` |
 
 The qualified source file that contains the `CREATE FUNCTION` SQL statement
-for the UDTF.  The CPP runs `RUNSQLSTM` against this file (member `UDTF`) as
+for the UDTF.  The `RUNSQLSTM` is run with this file and the UDTF (`UDTF`) parameter's member name as
 the final build step, creating or replacing the SQL function registration in
 the catalog.  `OBJLIB` is passed as the default RDB collection (`DFTRDBCOL`)
 so unqualified object references in the DDL resolve correctly.
@@ -114,8 +116,11 @@ so unqualified object references in the DDL resolve correctly.
 | Type | `*CHAR` (up to 10 characters) |
 | Default | `SQLTOOLS` |
 
-The library where the compiled module and program objects are placed.
+The library where the compiled module, are program objects are placed.
 `CRTCPPMOD`, `CRTPGM`, and `RUNSQLSTM` (`DFTRDBCOL`) all target this library.
+
+Note that the `CREATE or REPLACE function` can identify the schema name as a qualified function name.
+For example: `CREATE or REPLACE function sqltools.READSRC` targets library `SQLTOOLS` with the UDTF definition regardless of the value specified for this parameter.
 
 ---
 
@@ -128,7 +133,7 @@ The library where the compiled module and program objects are placed.
 | Values | `*BIND`, `*REFRESH` |
 
 Controls whether shared dependent `*MODULE` objects (e.g. `OBJLIST`) are
-recompiled before the main program is linked.
+recompiled before the main program is linked. Normally these modules only need to be created once per release.
 
 | Value | Behavior |
 |-------|----------|
@@ -145,7 +150,7 @@ recompiled before the main program is linked.
 | Default | `*SOURCE` |
 | Values | `*NONE`, `*STMT`, `*SOURCE`, `*LIST` |
 
-Controls the level of debug information compiled into the module.
+Controls the level of debug information compiled into the module and UDTF object.
 
 | Value | Behavior |
 |-------|----------|
@@ -176,8 +181,7 @@ is built.
 | `*NO` | Skips the `DROP`; the existing SQL function registration is left intact. |
 
 > **Note:** Dropping the function removes its SQL registration but does **not**
-> delete the underlying `*PGM` object.  Use `*NO` when you only want to
-> recompile the program without altering the SQL catalog.
+> delete the underlying `*PGM` object. The `CREATE or REPLACE` clause provides similar feature so DROP(*YES) is rarely necessary.
 
 ---
 
@@ -191,10 +195,8 @@ is built.
 
 The specific name used in the `DROP FUNCTION` statement.
 The special value **`*UDTF`** (default) substitutes the value supplied on the
-`UDTF` parameter, which is the most common case.
-
-Supply an explicit name only when the SQL-registered specific name differs
-from the UDTF source member name — for example:
+`UDTF` parameter. Most UDTF source member names, however, are not identical to the UDTF's specific name.
+When dropping the UDTF, supply the specific name for this parameter. For example:
 
 ```
 SPECNAME(SPOOL_DATA)
@@ -312,9 +314,9 @@ The resulting program is linked with:
 BLDUDTF UDTF(SPOOLDATA) EXTPGM(SPOOLDATA)
 ```
 
-Compiles `QCSRC/SQLTOOLS(SPOOLDATA)` into module and program `SQLTOOLS/SPOOLDATA`,
-then runs `RUNSQLSTM` against `QUDFSRC/SQLTOOLS(SPOOLDATA)` to register the SQL function.
-The existing SQL function is **not** dropped first (default `DROP(*NO)`).
+Compiles `SQLTOOLS/QCLSRC(SPOOLDATA)` into module and program `SQLTOOLS/SPOOLDATA`,
+then runs `RUNSQLSTM` against `SQLTOOLS/QUDFSRC(SPOOLDATA)` to register the SQL function.
+The existing SQL function is **not** dropped first (default `DROP(*NO)`), however the SPOOLDATA UDTF source contains the `CREATE or REPLACE` option and therefore the function is always replaced.
 
 ---
 
@@ -385,9 +387,9 @@ debug data so the ILE debugger can step through the C++ source.
 
 ```
 BLDUDTF UDTF(MYudtf)       EXTPGM(MYPGM)
-        EXTPGMSRC(QCSRC/DEVLIB)
+        EXTPGMSRC(DEVLIB/QCSRC)
         EXTPGMMBR(MYCSRC)
-        UDTFSRC(QSQLSRC/DEVLIB)
+        UDTFSRC(DEVLIB/QSQLSRC)
         OBJLIB(DEVLIB)
 ```
 
@@ -414,5 +416,5 @@ or `RUNSQLSTM`).  The `DROP FUNCTION` SQL statement has its own local
 | `BLDUDTF` | `*PGM` | CL program that implements the command |
 | `OBJLIST` | `*MODULE` | Shared dependent module bound into every UDTF program |
 | `QCSRC` | `*FILE` | Default source file for C/C++ source members |
-| `QUDFSRC` / `QSQLSRC` | `*FILE` | Default source files for SQL `CREATE FUNCTION` DDL |
+| `QUDFSRC` or `QSQLSRC` | `*FILE` | Default source files for SQL `CREATE FUNCTION` DDL |
 | `SQLTOOLS` | `*LIB` | Default library for all objects |

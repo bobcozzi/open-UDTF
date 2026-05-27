@@ -20,6 +20,7 @@
                           SPCVAL((QUDFSRC) (QSQLSRC)) EXPR(*YES)
              QUAL       TYPE(*NAME) LEN(10) DFT(SQLTOOLS) EXPR(*YES) +
                           PROMPT('Source library')
+
              PARM       KWD(OBJLIB) TYPE(*CHAR) LEN(10) +
                           DFT(SQLTOOLS) PROMPT('Target Library')
 

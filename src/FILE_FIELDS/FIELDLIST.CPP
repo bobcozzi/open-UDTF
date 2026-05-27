@@ -1,11 +1,7 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 1996-2026 by R. Cozzi, Jr.
 
-
-     // (c) 2020 - Bob Cozzi, Jr.
-     // @author BobCozzi
-
-
-
-// (c) 2020 - out Cozzi, Jr.
+// @author BobCozzi
 
 #ifndef __STDC_WANT_DEC_FP__
 #define __STDC_WANT_DEC_FP__

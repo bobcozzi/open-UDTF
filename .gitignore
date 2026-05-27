@@ -10,6 +10,7 @@
 
 # IBM i system headers (QSYSINC) - local copies only, not for distribution
 src/QSYSINC/
+src/SQLTOOLS/
 
 # Build artifacts
 *.o

@@ -1,18 +1,20 @@
-/**
- * Embedded source for CMDHELP.CPP — the C++ service program that backs the
- * CMD_HELP UDTF.  Stored here so the extension can upload and compile it on
- * first connection without requiring a separate file distribution.
- *
- * Source origin: /Users/cozzi/Downloads/projects/open-UDTF/src/CMD_HELP/CMDHELP.CPP
- * To update: edit that file, then ask Copilot to re-encode it into this file.
- *
- * C++ source is base64-encoded to prevent false-positive antivirus hits
- * in the VS Code Marketplace. Decoded at runtime before upload to IBM i.
- */
+
+ -- SPDX-License-Identifier: Apache-2.0
+ -- Copyright (c) 1996-2026 by R. Cozzi, Jr.
+ -- @author BobCozzi
+
+-- Embedded source for CMDHELP.CPP - the C++ service program that backs the
+-- CMD_HELP UDTF. Stored here so the extension can upload and compile it on
+-- first connection without requiring a separate file distribution.
+--
+-- Source origin: /Users/cozzi/Downloads/projects/open-UDTF/src/CMD_HELP/CMDHELP.CPP
+-- To update: edit that file, then ask Copilot to re-encode it into this file.
+--
+-- C++ source is base64-encoded to prevent false-positive antivirus hits
+-- in the VS Code Marketplace. Decoded at runtime before upload to IBM i.
+
 
  -- Retrieve HTML for a CL command's helptext
- -- (c) Copyright 2026 by R. Cozzi, Jr.
- -- @author BobCozzi
 
  CREATE or REPLACE FUNCTION sqltools.cmd_help(
                                library_name varchar(10) DEFAULT '*LIBL',

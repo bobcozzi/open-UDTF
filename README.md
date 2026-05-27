@@ -6,7 +6,7 @@ by Robert Cozzi Jr.
 I am releasing some of my SQLTOOLS SQL Table functions as open source. However they are being created as stand-alone UDTFs without any dependencies on the SQLTOOLS *SRVPGM and helper functions in the main product. The SQLTOOLS shall continue to be available in compiled form, for free on my SQLTOOLS repo.
 The first function being released is SPOOLED_DATA. It reads SPOOLED files and returns their results. It reads directly into the SPOOLED FILE object; it does not copy the SPOOLED FILE to a database file. This function interprets the SCS data stream and passes DBCS data transparently through the resulting columns. There is also a 2nd column SPOOLED_DATA_BIN that contains the non-textualized SPOOLED FILE records/line data, which in most cases can be ignored. It is functionally equivalent to the SQL Tools READSPLF table function.
 
-Each function's source lives under `/src/<function_name>/` and is self-contained. Shared components, such as the COZUTILS.H header file, are in the `/src/shared/h` folder and should be copied to an H file in the same library where the other source code is uploaded to. That is: `/src/shared/h/` currently contains `COZUTILS.H` and it should be uploaded to: `SQLTOOLS/H(COZUTILS)`
+Each function's source lives under `/src/<function_name>/` and is self-contained. Shared components, such as the COZUTILS.H header file, are in the `/src/shared/h` folder and should be copied to the target IBM i source member in the same library where the other source code is uploaded. That is: `/src/shared/h/` currently contains `COZUTILS.H` and it should be uploaded to `SQLTOOLS/H(COZUTILS)`.
 
 ---
 
@@ -27,8 +27,8 @@ classic `READSPLF` UDTF.
 | Folder | File | Target Src | Purpose |
 |--------|------|---------|---------|
 | `/src/shared/h/` | `COZUTILS.H` | SQLTOOLS/H(COZUTILS) | Standalone utility header |
-| `/src/spooled_data/QCSRC/` | `SPOOLDATA.CPP` | SQLTOOLS/QCSRC(SPOOLDATA) | ILE C++ UDTF program |
-| `/src/spooled_data/QSQLSRC/` | `SPOOLDATA.SQL` | SQLTOOLS/QUDFSRC(SPOOLDATA) | SQL UDTF source |
+| `/src/SPOOLED_DATA/` | `SPOOLDATA.CPP` | SQLTOOLS/QCSRC(SPOOLDATA) | ILE C++ UDTF program |
+| `/src/SPOOLED_DATA/` | `SPOOLDATA.SQL` | SQLTOOLS/QUDFSRC(SPOOLDATA) | SQL UDTF source |
 
 #### Signature
 
@@ -101,5 +101,7 @@ Several assumptions are included in the above BLDUDTF command:
 
 ## License
 
-Copyright (c) 1992-2026 Robert Cozzi Jr.
-Released under the MIT License — see [LICENSE](LICENSE).
+Copyright (c) 1996-2026 Robert Cozzi Jr.
+Licensed under the Apache License, Version 2.0 (Apache-2.0).
+You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0.
+See [LICENSE](LICENSE) for the full license text and terms.

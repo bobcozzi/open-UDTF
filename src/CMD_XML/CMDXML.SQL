@@ -1,3 +1,5 @@
+-- SPDX-License-Identifier: Apache-2.0
+-- Copyright (c) 1996-2026 by R. Cozzi, Jr.
 -- @author BobCozzi
 
 CREATE or REPLACE FUNCTION SQLTOOLS.cmd_xml(

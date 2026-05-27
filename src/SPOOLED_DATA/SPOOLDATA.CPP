@@ -1,5 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 1996-2026 by R. Cozzi, Jr.
 
 // @author BobCozzi
+
 #define __STDC_WANT_DEC_FP__
 #include <stdlib.h>
 #include <stdarg.h>

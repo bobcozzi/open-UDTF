@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 1996-2026 by R. Cozzi, Jr.
+// @author BobCozzi
 
 #ifndef _ST_OBJLIST_CLASS_
 #define _ST_OBJLIST_CLASS_

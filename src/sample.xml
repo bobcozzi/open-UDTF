@@ -1,0 +1,651 @@
+<html>
+<body>
+<div><a name="TOC"> Table of Contents</a>
+<p><a href="#CPYF.FROMFILE">CPYF/FROMFILE                                                  </a> </p>
+<p><a href="#CPYF.TOFILE">CPYF/TOFILE                                                    </a> </p>
+<p><a href="#CPYF.FROMMBR">CPYF/FROMMBR                                                   </a> </p>
+<p><a href="#CPYF.TOMBR">CPYF/TOMBR                                                     </a> </p>
+<p><a href="#CPYF.MBROPT">CPYF/MBROPT                                                    </a> </p>
+<p><a href="#CPYF.CRTFILE">CPYF/CRTFILE                                                   </a> </p>
+<p><a href="#CPYF.PRINT">CPYF/PRINT                                                     </a> </p>
+<p><a href="#CPYF.RCDFMT">CPYF/RCDFMT                                                    </a> </p>
+<p><a href="#CPYF.FROMRCD">CPYF/FROMRCD                                                   </a> </p>
+<p><a href="#CPYF.TORCD">CPYF/TORCD                                                     </a> </p>
+<p><a href="#CPYF.FROMKEY">CPYF/FROMKEY                                                   </a> </p>
+<p><a href="#CPYF.TOKEY">CPYF/TOKEY                                                     </a> </p>
+<p><a href="#CPYF.NBRRCDS">CPYF/NBRRCDS                                                   </a> </p>
+<p><a href="#CPYF.INCCHAR">CPYF/INCCHAR                                                   </a> </p>
+<p><a href="#CPYF.INCREL">CPYF/INCREL                                                    </a> </p>
+<p><a href="#CPYF.FMTOPT">CPYF/FMTOPT                                                    </a> </p>
+<p><a href="#CPYF.SRCOPT">CPYF/SRCOPT                                                    </a> </p>
+<p><a href="#CPYF.SRCSEQ">CPYF/SRCSEQ                                                    </a> </p>
+<p><a href="#CPYF.OUTFMT">CPYF/OUTFMT                                                    </a> </p>
+<p><a href="#CPYF.ERRLVL">CPYF/ERRLVL                                                    </a> </p>
+<p><a href="#CPYF.COMPRESS">CPYF/COMPRESS                                                  </a> </p>
+</div>
+<div> <a name="CPYF.FROMFILE"></a>
+<h3>From file (FROMFILE)</h3>
+<p>Specifies the database file or device file that contains the records to be copied.  A database file can be a physical file or a logical file.  A device file can be a diskette file or a tape file.
+</p>
+<p>This is a required parameter.
+</p>
+<p><b>Qualifier 1: From file</b>
+</p>
+<dl>
+<dt><b><i>name</i></b></dt>
+<dd>Specify the name of the database or device file that contains the records to be copied.
+</dd>
+</dl>
+<p><b>Qualifier 2: Library</b>
+</p>
+<dl>
+<dt><b><u>*LIBL</u></b></dt>
+<dd>All libraries in the user and system portions of the job's library list are searched until the first match is found.
+</dd>
+<dt><b>*CURLIB</b></dt>
+<dd>The current library for the job is used to locate the database file or device file.  If no library is specified as the current library for the job, the QGPL library is used.
+</dd>
+</dl>
+<dl>
+<dt><b><i>name</i></b></dt>
+<dd>Specify the name of the library to be searched.
+</dd>
+</dl>
+</div>
+<div> <a name="CPYF.TOFILE"></a>
+<h3>To file (TOFILE)</h3>
+<p>Specifies the file that receives the copied records.
+</p>
+<p>This is a required parameter.
+</p>
+<p>
+<b>Note:     </b>A device file can be a diskette file, tape file, or printer file.  However:  (1) If the from-file and to-file are both diskette files, the to-file must be spooled (SPOOL(*YES) must be specified on the Create Diskette File (CRTDKTF), Change Diskette File (CHGDKTF), or Override Diskette File (OVRDKTF) command).  (2) An externally described printer file cannot be specified.
+</p>
+<p>If the device file is a print file or if TOFILE(*PRINT) is specified, shift-out and shift-in (SO-SI) characters are not added around the graphic data.  OUTFMT(*HEX) can be specified to print the data in hexadecimal format.
+</p>
+<p><b>Single values</b>
+</p>
+<dl>
+<dt><b>*PRINT</b></dt>
+<dd>The data is copied to a system printer device file (QSYSPRT) and formatted according to the value specified for the <b>Print format (OUTFMT)</b> parameter.
+</dd>
+</dl>
+<p><b>Qualifier 1: To file</b>
+</p>
+<dl>
+<dt><b><i>name</i></b></dt>
+<dd>Specify the name of the physical file or device file that receives the copied records.
+</dd>
+</dl>
+<p><b>Qualifier 2: Library</b>
+</p>
+<dl>
+<dt><b><u>*LIBL</u></b></dt>
+<dd>All libraries in the user and system portions of the job's library list are searched until the first match is found.
+</dd>
+<dt><b>*CURLIB</b></dt>
+<dd>The current library for the job is used to locate the physical file or device file.  If no library is specified as the current library, QGPL is used.
+</dd>
+</dl>
+<dl>
+<dt><b><i>name</i></b></dt>
+<dd>Specify the name of the library to be searched.
+</dd>
+</dl>
+</div>
+<div> <a name="CPYF.FROMMBR"></a>
+<h3>From member (FROMMBR)</h3>
+<p>Specifies the database file member, or the diskette file label or tape file label, in the from-file that is to be copied.
+</p>
+<dl>
+<dt><b><u>*FIRST</u></b></dt>
+<dd>The first member in the database from-file is copied.  For a diskette, a label identifier must be specified in the device file or on an Override with Diskette File (OVRDKTF) command.  If the from-file is an inline file, *FIRST is the only value that is allowed.
+</dd>
+<dt><b>*ALL</b></dt>
+<dd>All members of a database from-file, or all file label identifiers for a diskette from-file are copied.  *ALL is not valid for a tape file or inline file.
+</dd>
+<dt><b><i>name</i></b></dt>
+<dd>Specify the name of the database from-file member, or the diskette from-file label or tape from-file label of the file member being copied.
+</dd>
+<dt><b><i>generic-name</i></b></dt>
+<dd>Specify a generic name to copy all database members that have names with the same prefix, or all diskette data files with the same prefix label identifier.  Refer to the description of FROMMBR(*ALL) for more information about copying many from-file members or label identifiers.
+</dd>
+</dl>
+</div>
+<div> <a name="CPYF.TOMBR"></a>
+<h3>To member or label (TOMBR)</h3>
+<p>Specifies the database file member name, or the diskette or tape file label identifier of the to-file member that receives the copied data records.  If *PRINT is specified for the <b>To file (TOFILE)</b> parameter, either *FIRST or *FROMMBR must be specified on this parameter.
+</p>
+<dl>
+</dl>
+<dl>
+<dt><b><u>*FIRST</u></b></dt>
+<dd>The first member of the specified file is used.
+</dd>
+</dl>
+<dl>
+<dt><b>*FROMMBR</b></dt>
+<dd>Corresponding from-file and to-file member names or device label identifiers are used.
+</dd>
+<dt><b>*ALL</b></dt>
+<dd>The data is copied to the correct to-member of the partitioned table.  *ALL is only valid for partitioned tables.
+</dd>
+<dt><b><i>name</i></b></dt>
+<dd>Specify the name of the physical to-file member, or the label identifier of the diskette or tape device to-file that receives the copied records.
+</dd>
+</dl>
+</div>
+<div> <a name="CPYF.MBROPT"></a>
+<h3>Replace or add records (MBROPT)</h3>
+<p>Specifies whether the new records replace or are added to the existing records.
+</p>
+<p>
+<b>Note:     </b>If the records are being copied to an existing physical file, this parameter must specify *ADD, *UPDADD, or *REPLACE.  If the to-file does not exist but CRTFILE(*YES) is specified, the copy operation assumes MBROPT(*ADD) for all records copied to the file after it is created, regardless of the value specified on this parameter.
+</p>
+<p>If *ADD or *UPDADD is specified and the from-file is empty (contains no records), the copy operation completes normally.  If *REPLACE is specified and the from-file is empty, the copy operation ends abnormally.
+</p>
+<dl>
+<dt><b><u>*NONE</u></b></dt>
+<dd>This parameter does not apply to this copy operation.  When the to-file is an existing physical file, *NONE is not allowed.
+</dd>
+</dl>
+<dl>
+<dt><b>*ADD</b></dt>
+<dd>The system adds the new records to the end of the existing records.
+</dd>
+</dl>
+<dl>
+<dt><b>*REPLACE</b></dt>
+<dd>The system clears the existing member and adds the new records.
+</dd>
+</dl>
+<dl>
+<dt><b>*UPDADD</b></dt>
+<dd>The system updates the duplicate key records and adds the new records to the end of the existing records.  Additional information is available in the Files and file systems category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+</dd>
+</dl>
+</div>
+<div> <a name="CPYF.CRTFILE"></a>
+<h3>Create file (CRTFILE)</h3>
+<p>Specifies, when this command is used to copy from a physical file or a logical file, whether a physical file is created to receive the data if the specified to-file does not exist.  If the to-file is a Distributed Data Management (DDM) file that identifies a remote file that does not exist, the to-file file is created on the target system.
+</p>
+<dl>
+<dt><b><u>*NO</u></b></dt>
+<dd>The to-file must exist when this command is started.  A physical file is not created to receive the data.
+</dd>
+<dt><b>*YES</b></dt>
+<dd>If the to-file does not exist, a physical file is created with the name specified on the <b>To file (TOFILE)</b> parameter.  If the from-file is an SQL table, view, or index, that contains a user defined type, datalink, LOB field type, or XML field type, the physical file created will be an SQL table. In all other instances the to-file created will be a database physical file that is not an SQL table.  In addition to the normal copy operation validity checks, the following special conditions must all be true for the copy operation to create a to-file:
+<ul>
+<li>The from-file must be either a physical or logical file.
+</li>
+<li>A library name must be specified on the <b>To file (TOFILE)</b> parameter.  The default value, *LIBL, is not allowed.
+</li>
+<li>There cannot be an override to a different file or library name.  The values specified on this command for the to-file must be used.
+</li>
+<li>The user running this command must be authorized to add the file to the to-file library, and must also have operational authority to the Create Physical File (CRTPF) command.
+</li>
+<li>A single record format must be used in the from-file.  If the from-file is a logical file with multiple formats, the <b>Record format of logical file (RCDFMT)</b> parameter must specify a record format name.
+</li>
+</ul>
+</dd>
+</dl>
+</div>
+<div> <a name="CPYF.PRINT"></a>
+<h3>Which records to print (PRINT)</h3>
+<p>Specifies whether copied records, excluded records, or both, are printed.
+</p>
+<p><b>Single values</b>
+</p>
+<dl>
+<dt><b><u>*NONE</u></b></dt>
+<dd>No copied, excluded, or error records are printed.
+</dd>
+</dl>
+<p><b>Other values (up to 3 repetitions)</b>
+</p>
+<dl>
+<dt><b>*EXCLD</b></dt>
+<dd>Records excluded from the copy operation by the <b>Include records by char test (INCCHAR)</b> parameter and the <b>Include records by field test (INCREL)</b> parameter are printed.
+</dd>
+<dt><b>*COPIED</b></dt>
+<dd>Copied records are printed.
+</dd>
+<dt><b>*ERROR</b></dt>
+<dd>The number of recoverable output error records specified for the <b>Errors allowed (ERRLVL)</b> parameter are printed.
+</dd>
+</dl>
+</div>
+<div> <a name="CPYF.RCDFMT"></a>
+<h3>Record format of logical file (RCDFMT)</h3>
+<p>Specifies, for copying from a database file only, the name of the record format that is copied.  If the from-file is not a logical or physical file, *ONLY is the only value allowed.  A record format name is optional if the logical file has only a single record format, but either a format name or *ALL must be specified if the from-file has more than one record format.
+</p>
+<dl>
+<dt><b><u>*ONLY</u></b></dt>
+<dd>The only record format in the from-file is copied.  When the from-file is a logical file, this value is allowed only if the file has a single record format.
+</dd>
+<dt><b>*ALL</b></dt>
+<dd>All record formats in the logical from-file are used.
+</dd>
+<dt><b><i>name</i></b></dt>
+<dd>Specify the name of the record format that is copied when the from-file is a logical or physical file.
+</dd>
+</dl>
+</div>
+<div> <a name="CPYF.FROMRCD"></a>
+<h3>Copy from record number (FROMRCD)</h3>
+<p>Specifies the record number from which to start the copy.  A record number is not valid if a value other than *NONE is specified for the <b>Copy from record key (FROMKEY)</b> parameter or for the <b>Copy to record key (TOKEY)</b> parameter, and it is not allowed if the from-file is a keyed logical file.
+</p>
+<dl>
+<dt><b><u>*START</u></b></dt>
+<dd>The copy operation begins with the first record in the file.
+</dd>
+<dt><b><i>1-4294967288</i></b></dt>
+<dd>Specify the record number of the first record to be copied from the from-file.
+</dd>
+</dl>
+</div>
+<div> <a name="CPYF.TORCD"></a>
+<h3>Copy to record number (TORCD)</h3>
+<p>Specifies the record number of the last record in the from-file (or each from-file member) that is copied.  A record number is not valid if a value other than *NONE is specified for the <b>Copy from record key (FROMKEY)</b> parameter or the <b>Copy to record key (TOKEY)</b> parameter, if a value other than *END is specified for the <b>Number of records to copy (NBRRCDS)</b> parameter, or if the from-file is a keyed logical file.
+</p>
+<dl>
+<dt><b><u>*END</u></b></dt>
+<dd>Records are copied until the end-of-file condition is indicated.
+</dd>
+</dl>
+<dl>
+<dt><b><i>1-4294967288</i></b></dt>
+<dd>Specify the record number of the last record to be copied from the from-file.
+</dd>
+</dl>
+</div>
+<div> <a name="CPYF.FROMKEY"></a>
+<h3>Copy from record key (FROMKEY)</h3>
+<p>Specifies, when a file with key fields is copied, the key value of the first record in the from-file (or each from-file member) is copied.  This parameter is valid only for a from-file that is a keyed database file, and is not allowed if record number values are specified for the <b>Copy from record number (FROMRCD)</b> parameter or for the <b>Copy to record number (TORCD)</b> parameter.
+</p>
+<p><b>Single values</b>
+</p>
+<dl>
+<dt><b><u>*NONE</u></b></dt>
+<dd>The first record copied is not selected by key.
+</dd>
+</dl>
+<p><b>Element 1: Number of key fields</b>
+</p>
+<dl>
+<dt><b>*BLDKEY</b></dt>
+<dd>A list of values (up to 256 characters each) is provided for key fields (as opposed to a single character string value for all fields in the key).  *BLDKEY is not valid if any value (up to 50) in the list corresponds to a null-capable key field.
+<p>The list of values specified for element 2 is applied (in order) to corresponding fields in the from-file key.  For character fields, the character strings are converted from the current job CCSID to the from-file field CCSID.  For date, time, or timestamp fields, corresponding input values are converted to the format and separator form of the from-file field.  For variable-length fields, only enter the character data, not the 2-byte length portion.  When a DBCS graphic field is specified, the input string (DBCS data) must be enclosed between shiftout (SO) and shiftin (SI) characters.  The SO-SI characters are removed from the input string and the remaining DBCS data is converted from the associated DBCS CCSID of the current job to the DBCS CCSID of the DBCS graphic field.
+</p>
+</dd>
+<dt><b><i>integer-number</i></b></dt>
+<dd>Specify the number of key fields used to locate the first record to be copied.
+</dd>
+</dl>
+<p><b>Element 2: Key value</b>
+</p>
+<dl>
+<dt><b><i>character-value</i></b></dt>
+<dd>Specify a character string that gives the actual key value for the number of key fields specified for the first element.  The key string value must be specified in quotation marks if it contains blanks or special characters, and it may be specified in hexadecimal format, which is useful if the key contains packed decimal or binary numeric fields, or is a variable-length character field.  CCSID conversions are not performed on character fields when a single string is specified.
+</dd>
+</dl>
+</div>
+<div> <a name="CPYF.TOKEY"></a>
+<h3>Copy to record key (TOKEY)</h3>
+<p>Specifies, when a file with key fields is copied, the key value of the last record in the from-file (or each from-file member) that is copied.  This parameter is valid only for a from-file that is a keyed database file, and it is not allowed if record number values are specified for the <b>Copy from record number (FROMRCD)</b> parameter or for the <b>Copy to record number (TORCD)</b> parameter, or if a number of records is specified for the <b>Number of records to copy (NBRRCDS)</b> parameter.
+</p>
+<p><b>Single values</b>
+</p>
+<dl>
+<dt><b><u>*NONE</u></b></dt>
+<dd>The last record copied is not selected by key.
+</dd>
+</dl>
+<p><b>Element 1: Number of key fields</b>
+</p>
+<dl>
+<dt><b>*BLDKEY</b></dt>
+<dd>A list of values (up to 256 characters each) is provided for key fields (as opposed to a single character string value for all fields in the key).  *BLDKEY is not valid if any value (up to 50) in the list corresponds to a null-capable key field.
+<p>The list of values specified for element 2 is applied (in order) to corresponding fields in the from-file key.  For character fields, the character strings are converted from the current job CCSID to the from-file field CCSID.  For date, time, or timestamp fields, corresponding input values are converted to the format and separator form of the from-file field.  For variable-length fields, only enter the character data, not the 2-byte length portion.  When a DBCS graphic field is specified, the input string (DBCS data) must be enclosed between shiftout (SO) and shiftin (SI) characters.  The SO-SI characters are removed from the input string and the remaining DBCS data is converted from the associated DBCS CCSID of the current job to the DBCS CCSID of the DBCS graphic field.
+</p>
+</dd>
+<dt><b><i>integer-number</i></b></dt>
+<dd>Specify the number of key fields used to locate the last record to be copied.
+</dd>
+</dl>
+<p><b>Element 2: Key value</b>
+</p>
+<dl>
+<dt><b><i>character-value</i></b></dt>
+<dd>Specify a character string that gives the actual key value for the number of key fields specified for the first element.  The key string value must be specified in quotation marks if it contains blanks or special characters, and it may be specified in hexadecimal format, which is useful if the key contains packed decimal or binary numeric fields, or is a variable-length character field.  CCSID conversions are not performed on character fields when a single string is specified.
+</dd>
+</dl>
+</div>
+<div> <a name="CPYF.NBRRCDS"></a>
+<h3>Number of records to copy (NBRRCDS)</h3>
+<p>Specifies the number of records copied to the to-file.
+</p>
+<dl>
+<dt><b><u>*END</u></b></dt>
+<dd>Records are copied until the end-of-file condition is indicated for the from-file, unless either the TOKEY or TORCD parameter has been specified.
+</dd>
+<dt><b><i>1-4294967288</i></b></dt>
+<dd>Specify the number of records to be copied to the to-file.
+</dd>
+</dl>
+</div>
+<div> <a name="CPYF.INCCHAR"></a>
+<h3>Include records by char test (INCCHAR)</h3>
+<p>Specifies that records are copied based on a comparison of a character string value and the data in some position of either a field in the record or the entire record.
+</p>
+<p><b>Single values</b>
+</p>
+<dl>
+<dt><b><u>*NONE</u></b></dt>
+<dd>No comparison should be used to select which records are copied.
+</dd>
+</dl>
+<p><b>Comparison values</b>
+</p>
+<p>To specify the comparison that determines which records are to be copied, four values must be entered.  Either *RCD or the name of a field must be entered, followed by the three values that control the comparison:  starting position, operator, and character string value.  All records that satisfy the relationship are copied to the to-file.
+</p>
+<p><b>Element 1: Field</b>
+</p>
+<dl>
+<dt><b>*RCD</b></dt>
+<dd>The character string value is compared with the data at the specified starting position in each record in the from-file.
+</dd>
+<dt><b>*FLD</b></dt>
+<dd>This value is the same as the *RCD value.
+</dd>
+<dt><b><i>name</i></b></dt>
+<dd>Specify the name of a field in the record format that is used to make the comparison.  The field must be defined as a character field in the data description specification (DDS) for the from-file.
+</dd>
+</dl>
+<p><b>Element 2: Character position</b>
+</p>
+<dl>
+<dt><b><i>starting-position</i></b></dt>
+<dd>Specify the starting position where the comparison starts in the field or record.  For variable-length fields, the position is the position in the data portion of the variable-length field.  For DBCS graphic fields, the position is the DBCS character position.  For any operator except *CT, the comparison is done for the length of the specified character string value (up to a maximum of 256 characters).  For the *CT operator, the field or record is scanned from the specified starting position to the end of the field or record to determine whether it contains the specified character string.
+</dd>
+</dl>
+<p><b>Element 3: Relational operator</b>
+</p>
+<p>Specify the operator that indicates the relationship that must exist between the record or field and the specified character string.
+</p>
+<dl>
+<dt><b>*EQ</b></dt>
+<dd>Equal
+</dd>
+<dt><b>*GT</b></dt>
+<dd>Greater than
+</dd>
+<dt><b>*LT</b></dt>
+<dd>Less than
+</dd>
+<dt><b>*NE</b></dt>
+<dd>Not equal
+</dd>
+<dt><b>*GE</b></dt>
+<dd>Greater than or equal
+</dd>
+<dt><b>*NL</b></dt>
+<dd>Not less than
+</dd>
+<dt><b>*LE</b></dt>
+<dd>Less than or equal
+</dd>
+<dt><b>*NG</b></dt>
+<dd>Not greater than
+</dd>
+<dt><b>*CT</b></dt>
+<dd>Contains
+</dd>
+</dl>
+<p><b>Element 4: Value</b>
+</p>
+<dl>
+<dt><b><i>character-value</i></b></dt>
+<dd>Specify the character string (up to 256 characters long) to be compared with the specified field or record.  The character string value must be specified in apostrophes if it contains blanks or special characters, and it may be specified in hexadecimal format.  If a field name is specified, the character string value is converted from the current job CCSID to the field CCSID prior to running the comparison.  If the field name of a variable-length field is specified, only the character data to be compared should be specified, not the 2-byte length portion.  If a field name is specified, <b>any</b> comparison to a field value that is the null value will test false.  For DBCS graphics, specify the input (DBCS data) string within shiftout and shiftin (SO-SI) characters.  The SO-SI characters are removed from the input string and the remaining DBCS data is converted from the associated DBCS CCSID of the current job to the DBCS CCSID of the DBCS graphic field.
+</dd>
+</dl>
+</div>
+<div> <a name="CPYF.INCREL"></a>
+<h3>Include records by field test (INCREL)</h3>
+<p>Specifies that records are copied based on whether certain fields in the record contain data that satisfies specified relationships.  This parameter is not valid for a copy from all record formats of a logical file with more than one format.
+</p>
+<p><b>Single values</b>
+</p>
+<dl>
+<dt><b><u>*NONE</u></b></dt>
+<dd>No field value relationships are used to select which records are copied.
+</dd>
+</dl>
+<p><b>Relationship values</b>
+</p>
+<p>To specify the conditions under which records are copied, a set of values is specified for each condition.  Up to 50 sets of realtionship values can be specified.  Each set must contain exactly four values:
+</p>
+<ol>
+<li>A logical operator
+</li>
+<li>The name of the field to be compared
+</li>
+<li>A relational operator
+</li>
+<li>The comparison value
+</li>
+</ol>
+<p><b>Element 1: Relationship</b>
+</p>
+<dl>
+<dt><b>*IF</b></dt>
+<dd>This must be specified as the first value in a set of comparisons.
+</dd>
+<dt><b>*AND</b></dt>
+<dd>The field value relational groups on both sides of the *AND value must all be satisfied before a record is copied.
+</dd>
+<dt><b>*OR</b></dt>
+<dd>If the field value relational group on either side of the value *OR is satisfied, the record is copied.
+</dd>
+</dl>
+<p><b>Element 2: Field</b>
+</p>
+<dl>
+<dt><b><i>name</i></b></dt>
+<dd>Specify the name of the field being compared.  The field must exist in the from-file record format, and may be defined as either character or numeric in the data description specification (DDS) for the file.
+</dd>
+</dl>
+<p><b>Element 3: Relational operator</b>
+</p>
+<p>Specify the operator that indicates the relationship which must exist between the field in the record and the specified field value.
+</p>
+<dl>
+<dt><b>*EQ</b></dt>
+<dd>Equal
+</dd>
+<dt><b>*GT</b></dt>
+<dd>Greater than
+</dd>
+<dt><b>*LT</b></dt>
+<dd>Less than
+</dd>
+<dt><b>*NE</b></dt>
+<dd>Not equal
+</dd>
+<dt><b>*GE</b></dt>
+<dd>Greater than or equal
+</dd>
+<dt><b>*NL</b></dt>
+<dd>Not less than
+</dd>
+<dt><b>*LE</b></dt>
+<dd>Less than or equal
+</dd>
+<dt><b>*NG</b></dt>
+<dd>Not greater than
+</dd>
+</dl>
+<p><b>Element 4: Value</b>
+</p>
+<dl>
+<dt><b>*NULL</b></dt>
+<dd>*NULL can be used as the value to test whether the field value in a record is or is not null.  Only the operators *EQ and *NE are allowed if *NULL is specified.  A &quot;*EQ  *NULL&quot; relation is true only if a field value in a record is null.  A &quot;*NE  *NULL&quot; relationship is true only if a field value in a record is not null.
+</dd>
+<dt><b><i>character-value</i></b></dt>
+<dd>Specify the value (up to 256 characters) to be compared with the contents of the specified field.  The specified value cannot be another field name.  The field value must be specified in apostrophes if it contains blanks or special characters, and it may be specified in hexadecimal format.  Any non-*NULL comparison to a field value in a record that is null will test false, regardless of the operator used.  For variable-length fields, specify only the data portion of the value, not the 2-byte length portion.  For character fields, the data is converted from the current job CCSID to the field CCSID prior to comparing the data to the field data.  When a DBCS graphic field is specified, the input string (DBCS data) must be enclosed within shiftout and shiftin (SO-SI) characters.  The SO-SI characters are removed from the input string and the remaining DBCS data is converted from the associated DBCS CCSID of the current job to the DBCS CCSID of the DBCS graphic field.
+</dd>
+</dl>
+</div>
+<div> <a name="CPYF.FMTOPT"></a>
+<h3>Record format field mapping (FMTOPT)</h3>
+<p>Specifies, when a physical or logical from-file is copied to a physical to-file, what field-level record format processing (if any) is done.  If the from-file and to-file are database files with different file types (one is *SRC and the other is *DATA), *CVTSRC must be specified.
+</p>
+<p><b>Single values</b>
+</p>
+<dl>
+<dt><b><u>*NONE</u></b></dt>
+<dd>No field mapping or dropping is done during the copy operation.  This value is valid only if the from-file and to-file are not both database files, or if they are both database files and have the same record format.  The record formats are the same only if every field exists in both the from-file and to-file formats, and if each has the same starting position and attributes in both records.  Attributes include whether or not a field is null-capable, and the date/time format and separator (if the field is a date/time field).  Null values are copied if *NONE is valid.
+</dd>
+<dt><b>*NOCHK</b></dt>
+<dd>If the record formats of the database files are different, the copy operation continues despite the differences.  Record data is copied directly (left to right) from one file to the other.  *NOCHK is required when copying all record formats from a logical file with more than one format to a physical file that is of the same type (source or data) as the from-file.  If this value is specified, null values are ignored and no conversion of date/time data occurs.
+</dd>
+<dt><b>*CVTSRC</b></dt>
+<dd>This value is used to copy between database files, from a source file to a data file, or from a data file to a source file.  It is valid only when the from-file and to-file are different types (source and data).  The file type conversion is done as follows:
+<ul>
+<li>If the to-file is a data file, the from-file sequence number and date fields are dropped, and the source data part of each from-file record is copied to the to-file.
+</li>
+<li>If the to-file is a source file, sequence number and date fields are added, and the from-file record data is copied to the source data part of each to-file record.  Null values are ignored and no conversion of date/time data is performed.
+</li>
+<li>When either the from-file or the to-file is not a database file, FMTOPT(*CVTSRC) is not required for copying from a source file to a data file or from a data file to a source file.  Sequence number and date fields are appended or dropped automatically, depending on the file types.  If the to-file is a source physical file, the SRCOPT and SRCSEQ parameters can be used to control the sequence numbers created for records copied to the to-file.
+</li>
+</ul>
+</dd>
+</dl>
+<p><b>Other values (up to 2 repetitions)</b>
+</p>
+<dl>
+<dt><b>*MAP</b></dt>
+<dd>Fields with the same name in the from-file and to-file record formats are copied, and any fields in the to-file that do not exist in the from-file format are set to the default value specified on the DFT keyword for the data description specification (DDS) of the to-file or zero for numeric fields, blanks for character fields, current date/time for date/time fields, or null value for null-capable fields.
+<p>If *MAP is specified, *DROP can also be specified.  Mapped fields may have different starting positions in the from-file and to-file record formats.
+</p>
+<p>If *MAP is specified and a valid conversion is defined between the from-file field CCSID and the to-file field CCSID, the character data is converted to the to-file field CCSID.  However, if either the from-file field CCSID or the to-file field CCSID is 65535, the character data is not converted.
+</p>
+<p>*MAP allows for the conversion of date/time data and the copying of null values.
+</p>
+</dd>
+<dt><b>*DROP</b></dt>
+<dd>This value must be specified for field-level mapping if any of the field names in the from-file record format do not exist in the to-file format.  If *DROP is specified, *MAP can also be specified.  When *DROP is specified, all the field names that exist in both record formats must have the same attributes and relative positions in the from-file and to-file record formats, or *MAP must also be specified.  Null values are copied.
+</dd>
+<dt><b>*CVTFLOAT</b></dt>
+<dd>Specifies CPYF to process each floating point field identified by the external description of the output database physical file and convert it from System/390 floating point format to the IEEE format used by i5/OS.
+</dd>
+<dt><b>*NULLFLAGS</b></dt>
+<dd>Specifies CPYF to take the byte following each field identified as being null-capable by the external description of the output file, and use it as a flag to indicate if the corresponding input field is null.  If the byte is blank ('40'X) or contains '00'X, the data is considered to be not null.  Any other value for the flag causes the corresponding input field data to be ignored and the output value set to null.
+</dd>
+</dl>
+<p><b>Note:</b> If *CVTFLOAT or *NULLFLAGS is specified and the input file is externally described, the input file external description will not be used in doing the mapping of the copied data.  If *CVTFLOAT or *NULLFLAGS is specified, any other value is ignored (unless both are specified).  TOFILE must be an externally-described physical data file.  The following parameter values cannot be specified when *CVTFLOAT or *NULLFLAGS is specified:
+</p>
+<ul>
+<li>RCDFMT(*ALL) when the from-file is a multiple format logical file
+</li>
+<li>A value other than default for CRTFILE (unless the TOFILE already exists causing *YES to be ignored), FROMKEY, TOKEY, INCCHAR, INCREL, SRCOPT and SRCSEQ.
+</li>
+</ul>
+<p><b>*** ATTENTION ***</b>
+</p>
+<p>*CVTFLOAT and *NULLFLAGS must only be used for conversion of data to i5/OS format, and they must be used correctly to avoid possible data corruption.
+</p>
+<p><b>*****************</b>
+</p>
+</div>
+<div> <a name="CPYF.SRCOPT"></a>
+<h3>Source update options (SRCOPT)</h3>
+<p>Specifies, only for copying to a source physical file, whether new sequence numbers are inserted in the sequence number fields and whether the date fields are set to zero.  Both *SEQNBR and *DATE can be specified.
+</p>
+<p><b>Single values</b>
+</p>
+<dl>
+<dt><b><u>*SAME</u></b></dt>
+<dd>New source sequence numbers are not inserted and the source date fields are not set to zero in the records copied to the to-file.  *SAME is required if the to-file is not a source physical file.
+</dd>
+</dl>
+<p><b>Other values (up to 2 repetitions)</b>
+</p>
+<dl>
+<dt><b>*SEQNBR</b></dt>
+<dd>New source sequence numbers are inserted in the records copied to the to-file.  The new sequence numbers are controlled by the <b>Source sequence numbering (SRCSEQ)</b> parameter value.
+</dd>
+<dt><b>*DATE</b></dt>
+<dd>The source date field is set to zero in the records copied to the to-file.
+</dd>
+</dl>
+</div>
+<div> <a name="CPYF.SRCSEQ"></a>
+<h3>Source sequence numbering (SRCSEQ)</h3>
+<p>Specifies, only when *SEQNBR is specified for the <b>Source update options (SRCOPT)</b> parameter, the sequence number that is given to the first record copied to the to-file, and what value is added to renumber all other records that are copied.
+</p>
+<p><b>Element 1: Starting sequence number</b>
+</p>
+<dl>
+<dt><b><u>1.00</u></b></dt>
+<dd>The first source record copied to the to-file has a sequence number of 0001.00.
+</dd>
+<dt><b><i>0.01-9999.99</i></b></dt>
+<dd>Specify the sequence number of the first source record copied to the to-file.
+</dd>
+</dl>
+<p><b>Element 2: Increment number</b>
+</p>
+<dl>
+<dt><b><u>1.00</u></b></dt>
+<dd>The copied source records are renumbered in the to-file with whole number additions of 1.
+</dd>
+<dt><b><i>0.01-9999.99</i></b></dt>
+<dd>Specify the value added for renumbering all source records copied after the first record.
+</dd>
+</dl>
+</div>
+<div> <a name="CPYF.OUTFMT"></a>
+<h3>Print format (OUTFMT)</h3>
+<p>Specifies whether records are printed in character format, or in both character and hexadecimal format.  This parameter is used only when *PRINT is specified for the <b>To file (TOFILE)</b> parameter or *EXCLD or *COPIED is specified for the <b>Which records to print (PRINT)</b> parameter.
+</p>
+<dl>
+<dt><b><u>*CHAR</u></b></dt>
+<dd>Records are printed in character format.
+</dd>
+<dt><b>*HEX</b></dt>
+<dd>Records are printed in both character and hexadecimal format.
+</dd>
+</dl>
+</div>
+<div> <a name="CPYF.ERRLVL"></a>
+<h3>Errors allowed (ERRLVL)</h3>
+<p>Specifies the maximum number of recoverable read or write errors for the file that are tolerated during the copy operation for a single database from-file member or tape from-file label identifier.
+</p>
+<dl>
+<dt><b><u>0</u></b></dt>
+<dd>If any recoverable error occurs, the copy operation ends at the file member in which the error occurs.
+</dd>
+<dt><b>*NOMAX</b></dt>
+<dd>No maximum number of errors is specified, and all recoverable errors are tolerated.
+</dd>
+<dt><b><i>integer-number</i></b></dt>
+<dd>Specify the maximum number of recoverable errors that is allowed in each from-file member or label that is copied.
+</dd>
+</dl>
+</div>
+<div> <a name="CPYF.COMPRESS"></a>
+<h3>Compress out deleted records (COMPRESS)</h3>
+<p>Specifies whether the to-file contains a compressed form of the from-file.  Compression occurs when deleted records in the from-file are not copied to the to-file.  *NO is used to copy all records when the from-file and to-file are both physical files.  If from-file is delete-capable and the to-file is not delete-capable, then *YES must be specified.
+</p>
+<dl>
+<dt><b><u>*YES</u></b></dt>
+<dd>The records copied to the to-file are compressed.  Deleted records that exist in the from-file are not copied to the to-file.
+</dd>
+<dt><b>*NO</b></dt>
+<dd>Both the deleted and nondeleted records are copied to the to-file.
+</dd>
+</dl>
+</div>
+</body>
+</html>

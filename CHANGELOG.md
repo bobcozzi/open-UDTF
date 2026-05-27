@@ -12,7 +12,7 @@ All notable changes to this project will be documented in this file.
   `CMDXML.MD`. Returns the raw XML command definition for any CL command
   on the system by calling the `QCDRCMDD` API.
 - `@author BobCozzi` tag added to all `.cpp` and `.sql` source files across
-  CMD_HELP, CMD_XML, FILE_FIELDS, and spooled_data folders.
+  CMD_HELP, CMD_XML, FILE_FIELDS, and SPOOLED_DATA folders.
 
 ## [1.4.0] - 2026-05-07
 
@@ -49,7 +49,7 @@ All notable changes to this project will be documented in this file.
 - Corrected initial naming consistency and folder structures.
 
 ## [1.2.0] - 2026-05-06
--`/src/h/cozutils.h` replaces the old include file name. This allows it to be more properly named as we add more UDTFs to this repo and use that same include file.
+- `/src/shared/h/COZUTILS.H` replaces the old include file name. This allows it to be more properly named as we add more UDTFs to this repo and use that same include file.
 - The `BLDUDTF` command and its CLLE command processing program were updated and completed. They now support a full build process for the SPOOL_DATA UDTF and future functions we add to this repo.
 - Note: Currently the BLDUDTF allows you to specify the Object Library (OBJLIB), however the SQL UDTF source `SPOOLDATA.SQL` that contains the initial `SPOOLED_DATA` function currently hard codes its schema/library as `SQLTOOLS`. This will change in the future. But for now, if you don't want to use `SQLTOOLS` as the library/schema name, then you will need to manually change `SQLTOOLS` in the `SPOOLDATA.SQL` source to your preferred schema/library name.
 
@@ -72,10 +72,9 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 - Initial release of the **SPOOLED_DATA** standalone UDTF.
-- `src/spooled_data/c/SPOOLDATA.CPP` — C++ source for the UDTF external
+- `src/SPOOLED_DATA/SPOOLDATA.CPP` — C++ source for the UDTF external
   program `SPOOLDATA`.
-- `src/spooled_data/h/SPLUTILS.H` — Standalone spool-read utility helpers
-  (replaces `coz::` namespace; all functions are `static inline` with `spu_`
-  prefix).
-- `src/spooled_data/sql/SPOOLDATA.SQL` — SQL DDL to create or replace
+- `src/shared/h/COZUTILS.H` — Shared standalone utility helpers used by
+  SPOOLED_DATA and other UDTFs.
+- `src/SPOOLED_DATA/SPOOLDATA.SQL` — SQL DDL to create or replace
   `SQLTOOLS.SPOOLED_DATA` table function (specific name `SQLTOOLS.SPOOLED_DATA`).

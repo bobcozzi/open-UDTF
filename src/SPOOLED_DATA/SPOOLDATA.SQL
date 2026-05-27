@@ -1,11 +1,13 @@
 -- SPOOLED_DATA UDTF
+-- SPDX-License-Identifier: Apache-2.0
+-- Copyright (c) 1996-2026 by R. Cozzi, Jr.
+-- @author BobCozzi
+
 -- Standalone version of READSPLF. Reads a SPOOLED
 -- file's content directly and returns it as rows.
 -- This function has zero dependency on the SQLTOOLS
 -- *SRVPGM - it is fully self-contained.
 -- Module: SQLTOOLS/ST_SPOOLDATA
--- (c) 1992-2025 Robert Cozzi Jr.
--- @author BobCozzi
 
 CREATE OR REPLACE FUNCTION sqltools.SPOOLED_DATA(
     SPLFNAME  VARCHAR(10)  DEFAULT '*LAST',
