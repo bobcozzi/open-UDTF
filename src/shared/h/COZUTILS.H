@@ -54,6 +54,13 @@
 #include <sql.h>
 #include <sqludf.h>
 
+/* Forward declarations (defined below)         */
+static inline int coz_toUpper(char* szData,
+    int inLen = -1, int ccsid = 0);
+static inline int coz_rmvmsg(
+    const char* msgtype,
+    const char* msgkey = NULL);
+
 
 /* Case-conversion direction constants */
 #ifndef _TOUPPER
@@ -247,10 +254,6 @@ static inline void coz_makeAPIObjName(
     _CPYBYTES(objName + 10, LIBNAME, 10);
 }
 
-/* Forward declaration (defined below)           */
-static inline int coz_toUpper(char* szData,
-    int inLen = -1, int ccsid = 0);
-
 /* ============================================= */
 /* coz_nameUpper                                 */
 /* Converts non-quoted IBM i object name to      */
@@ -383,8 +386,8 @@ static inline void coz_joblog(
 /* ============================================= */
 static inline int coz_toUpper(
     char* szData,
-    int   inLen = -1,
-    int   ccsid = 0)
+    int   inLen,
+    int   ccsid)
 {
     Qlg_CCSID_ReqCtlBlk_T frcb;
     coz_qusec ec;
@@ -631,6 +634,7 @@ static inline char* coz_TEMP_USRSPACE(
              &initVal, pubAut, text,
              repl, &ec, domain);
     if (ec.isEmpty()) {
+        coz_rmvmsg("*COMP",NULL);  // Remove "Changed owner" message
         /* Enable auto-extend so the space grows   */
         /* automatically when APIs write past the  */
         /* initial size (e.g. QDBRTVFD).           */
