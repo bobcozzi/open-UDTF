@@ -32,6 +32,11 @@ SELECT SQLTOOLS.CHECK_AUT(
 
 ---
 
+## Function
+```sql
+values sqltools.check_aut(object_name=>'IQUERY',objtype=>'lib', auth=>'change');
+```
+
 ## Parameters
 
 ### LIBRARY_NAME
