@@ -179,15 +179,15 @@ scratch_t scratch;
 /* Helper function prototypes                    */
 /* ============================================= */
 inline void  coz_copyPad(char* t, const char* s, int padLen = 10, char padChar = ' ');
-inline void  coz_DLTOBJ(const char* qualObjName, const char* objType, const char* ASPName = "*");
+inline int   coz_copyUntil(char* t, const char* s, int maxLen = 10, const char* stopAt = NULL, bool bTrim = false);
 inline int   coz_toUpper(char* szData, int inLen = -1, int ccsid = 0);
 inline int   coz_nameUpper(char* szData, int inLen = -1);
 
 inline char* coz_TEMP_USRSPACE(char* rtnUSName, const char* objAttr = "SQLTOOLS", int initSize = 4096);
 inline char* coz_getPtrUsrSpace(const char* p2PartUsrSpaceName);
+inline void  coz_DLTOBJ(const char* qualObjName, const char* objType, const char* ASPName = "*");
 
 inline void  coz_makeAPIObjName(char* objName, const char* qualObj, const char* dftLib = "*LIBL");
-inline int   coz_copyUntil(char* t, const char* s, int maxLen = 10, const char* stopAt = NULL, bool bTrim = false);
 inline void  coz_resignalMsg(coz_qusec& ec);
 inline char* coz_getNextParmIf(int& pC, int& argc, char** argv, int ioFlag = 0);
 

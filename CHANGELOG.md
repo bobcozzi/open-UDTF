@@ -2,9 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.0] - 2026-05-28
+### What's New
+-- Add New **CHECK_AUT** UDTF that returns a 1 or 0 after checking the user-specified authority to an object.
+
 ## [1.5.0] - 2026-05-21
 
-### Added
+### What's New
 - **New UDTF: CMD_HELP** — `src/CMD_HELP/CMDHELP.CPP`, `cmdhelp.sql`,
   `CMDHELP.MD`. Returns the HTML helptext for any CL command on the system
   using `GENCMDDOC` under the covers.
@@ -16,7 +20,7 @@ All notable changes to this project will be documented in this file.
 
 ## [1.4.0] - 2026-05-07
 
-### Added
+### What's New
 - **New UDTF: FILE_FIELDS** — `src/FILE_FIELDS/FIELDLIST.CPP`, `FIELDLIST.SQL`,
   `FIELDLIST.MD`. Returns field metadata (name, type, length, etc.) for any
   database file on the system.
@@ -55,7 +59,7 @@ All notable changes to this project will be documented in this file.
 
 ## [1.1.0] - 2026-05-05
 
-### Added
+### What's New
 - `src/build/BLDUDTF.CLLE` — Generic IBM i CL build program for compiling and
   registering any UDTF in this project.
   - Accepts three optional parameters: `&OBJLIB` (target library),
@@ -70,7 +74,7 @@ All notable changes to this project will be documented in this file.
 
 ## [1.0.0] - 2026-05-05
 
-### Added
+### What's New
 - Initial release of the **SPOOLED_DATA** standalone UDTF.
 - `src/SPOOLED_DATA/SPOOLDATA.CPP` — C++ source for the UDTF external
   program `SPOOLDATA`.
