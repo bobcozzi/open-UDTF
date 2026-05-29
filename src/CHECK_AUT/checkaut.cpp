@@ -357,8 +357,23 @@ int main(int argc, char *argv[])
 
   if (ec.hasError())
   {
-     *outAUTHORIZED = 0;
-     coz_resignalMsg( ec );
+    *outAUTHORIZED = 0;
+    if (ec.compare("CPF98"))
+    {
+       if (ec.compare("CPF9801"))  // Object Not Found
+       {
+           *outAUTHORIZED = -1;
+       }
+       else if (ec.compare("CPF981"))  // CPF981x - specific device/library Not Found
+       {
+           *outAUTHORIZED = -1;
+       }
+       else if (ec.compare("CPF9802") || ec.compare("CPF9820"))  // Not Authorized
+       {
+           *outAUTHORIZED = 0;
+       }
+    }
+    coz_resignalMsg( ec );
   }
   else
   {

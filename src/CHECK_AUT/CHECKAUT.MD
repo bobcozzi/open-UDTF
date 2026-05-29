@@ -113,8 +113,10 @@ It is recommended to avoid the call level (CALLLVL) parameter unless you are sur
 
 ## Return value
 
-Returns `1` if the user is authorized, `0` if not. When `0` is returned, check the joblog for any CPF message(s) that may have been generated, such as CPF9801 Object Not Found.
-
+The function returns an **integer**.
+-  1 = Authorized
+-  0 = Not Authorized
+-  -1 = Object or Library Not Found
 ---
 
 ## Description
