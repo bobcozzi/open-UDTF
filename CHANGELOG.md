@@ -4,7 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [1.6.0] - 2026-05-28
 ### What's New
--- Add New **CHECK_AUT** UDTF that returns a 1 or 0 after checking the user-specified authority to an object.
+-- Add New **CHECK_AUT** UDTF that returns 1=Authorized, 0=Not Authorized  or -1=Object Not found after checking user-specified authority to an object.
+
+## [1.7.0] - 2026-06-01
+### What's New
+-- Add New **CMD_CHECK** UDTF that syntax checks CL Command in various environment such as CL programming. The returned resultset is a list of error message ID and message text, or and empty set (no row) when no syntax error is detected. This is the same function used by vscode-clle to syntax check CL program source.
 
 ## [1.5.0] - 2026-05-21
 

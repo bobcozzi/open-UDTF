@@ -375,7 +375,7 @@ int main(int argc, char *argv[])
     }
     coz_resignalMsg( ec );
   }
-  else
+  else  // Normal/non-error return with authorization flag test
   {
      *outAUTHORIZED = (authorizedFlag[0] == 'Y' ? 1 : 0);
   }
