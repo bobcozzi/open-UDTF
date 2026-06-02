@@ -562,7 +562,8 @@ inline void coz_resignalMsg(coz_qusec& ec)
     memset(msgkey,  ' ', sizeof(msgkey));
     memset(msgfile, ' ', sizeof(msgfile));
     memset(topgmq,  ' ', sizeof(topgmq));
-    coz_copyPad(topgmq, "*", 10);
+    topgmq[0] = '*';
+
     if (ec.isEmpty()) return;
     _CPYBYTES(msgPrefix, ec.msgid(), 2);
     _CPYBYTES(msgType,   ec.msgid() + 2, 1);
