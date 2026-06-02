@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.7.0] - 2026-06-02
+### What's New
+-- Add New **HASH_SHA256** UDTF that returns the SHA256 HASH but works on IBM i V7R2 and later. A variation of the function named HASH_SHA256_UTF8 is also included that converts the input data to UTF-8 (CCSID:1208) before calculating the HASH.
+
 ## [1.6.0] - 2026-05-28
 ### What's New
 -- Add New **CHECK_AUT** UDTF that returns 1=Authorized, 0=Not Authorized  or -1=Object Not found after checking user-specified authority to an object.
