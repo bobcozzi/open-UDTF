@@ -1,6 +1,3 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright (c) 1996-2026 by R. Cozzi, Jr.
-// @author BobCozzi
 
 
 #include <stdio.h>
@@ -16,8 +13,8 @@
 #include <Qp0ztrc.h>
 #include <qusec.h>
 
-#include <COZUTILS.H>
-#include <OBJLIST.H>
+#include <sqltoolsrc/h/COZUTILS>
+#include <sqltoolsrc/h/OBJLIST>
 
 #include <list>
 #include <map>
@@ -239,9 +236,9 @@ int CObjList::open(const char *objName, const char *objLib, const char *objType,
         if (objType[0] != '*')
         {
             i = 1;
+            objtype[0] = '*';
         }
-        coz::copyPad(objtype, objType + i, MAX_NAMELEN);
-        objtype[0] = '*';
+        coz::copyPad(objtype+i, objType, MAX_NAMELEN-i);
     }
     coz::copyUntil(szObject, objName, MAX_NAMELEN);
     coz::copyUntil(szLib, objLib, MAX_NAMELEN);
@@ -1394,3 +1391,4 @@ int CObjList::addSortField(int pos, int len, short dataType, char seq)
 }
 
 #pragma datamodel(pop)
+
