@@ -19,6 +19,14 @@ For each field, both SQL and RPG IV data type definitions are returned.
 | `/src/FIELD_LIST/FIELDLIST.SQL` | `SQLTOOLS/QUDFSRC(FIELDLIST)` | SQL UDTF definition  |
 
 ---
+## Compiling
+After uploading the two source file to the IBM i Host, you need to compile them using the SQL RUNSQLSTM command, and the C++ compiler.
+The C++ requires a 2-step process in order to correctly specify the *PGM's Activation Group, which must be *CALLER for SQL functions.
+## Compiling FIELDLIST.CPP
+`CRTCPPMOD MODULE(SQLTOOLS/FIELDLIST) SRCFILE(SQLTOOLSRC/QCSRC) OUTPUT(*PRINT) DBGVIEW(*SOURCE) SYSIFCOPT(*IFS64IO)`
+`CRTPGM PGM(SQLTOOLS/FIELDLIST) MODULE(SQLTOOLS/FIELDLIST) ACTGRP(*CALLER)`
+## Compiling FIELDLIST.SQL
+`RUNSQLSTM SRCMBR(FIELDLIST) SRCFILE(SQLTOOLS/QSQLSRC)`
 
 ## Signature
 
@@ -35,7 +43,7 @@ SELECT *
   ) AS t;
 ```
 
-All parameters are optional except `FILE_NAME`.
+
 
 ---
 
