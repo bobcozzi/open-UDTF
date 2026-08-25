@@ -38,16 +38,22 @@
 #include <iconv.h>
 #include <QTQICONV.h>
 
+#include <LECOND.h>
+
 #include <QUSEC.h>
 #include <QUSGEN.h>
 #include <QUSCRTUS.h>
 #include <QUSCUSAT.h>
 #include <QUSPTRUS.h>
-#include <QLIDLTO.h>
-#include <LECOND.h>
+
 #include <QLGCASE.h>
 #include <QWCCVTDT.h>
+
+#include <QMH.h>
 #include <QMHSNDPM.h>
+#include <QMHRCVPM.h>
+#include <QMHRMVPM.h>
+
 #include <QUSRJOBI.h>
 
 #include <QUSLFLD.h>
@@ -188,7 +194,12 @@ public:
     int  getFromCCSID();
     int  getToCCSID();
     void setCCSID(int toCCSID, int fromCCSID);
-    int  xlate(char* pOutput, int outLen = -1, const char* pInput = NULL, int inLen = -1);
+    int  xlate(char* pOutput,
+               int outLen = -1,
+               const char* pInput = NULL,
+               int inLen = -1,
+               int* pBytesProduced = NULL,
+               int* pBytesConsumed = NULL);
     int  convert(char* pOutput, const char* pInput);
 
 };
@@ -277,7 +288,13 @@ int CiConv::getToCCSID()
    return toCode.CCSID;
 }
 
-int CiConv::xlate( char* pOutput, int outLen, const char* pInput, int inLen )
+int CiConv::xlate(
+    char* pOutput,
+    int outLen,
+    const char* pInput,
+    int inLen,
+    int* pBytesProduced,
+    int* pBytesConsumed)
 {
     const int outputTargetMultiplier = 4;  // (4x length of input by default)
 
@@ -313,11 +330,25 @@ int CiConv::xlate( char* pOutput, int outLen, const char* pInput, int inLen )
     {
       outputSize = outLen;
     }
-    size_t originalInputLen = inputSize;
+    const size_t initialInputSize = inputSize;
+    const size_t initialOutputSize = outputSize;
 
     size_t result = iconv(hConv, &inputPtr, &inputSize, &outputPtr, &outputSize);
 
-    return ((int)result == -1) ? 0 : (int) (originalInputLen-outputSize);
+    const int bytesProduced = (int)(initialOutputSize - outputSize);
+    const int bytesConsumed = (int)(initialInputSize - inputSize);
+
+    if (pBytesProduced != NULL)
+    {
+        *pBytesProduced = bytesProduced;
+    }
+    if (pBytesConsumed != NULL)
+    {
+        *pBytesConsumed = bytesConsumed;
+    }
+
+    // Return -1 on conversion failure; otherwise return output bytes produced.
+    return ((int)result == -1) ? -1 : bytesProduced;
 }
 int CiConv::convert( char* pOutput, const char* pInput )
 {
@@ -339,12 +370,13 @@ inline void copyPad(char *t, const char *s, int padLen = 10, char padChar = ' ')
 inline int copyUntil(char *t, const char *s, int maxLen = 10, const char *stopChars = NULL, bool bTrim = true);
 inline int coz_toUpper(char *szData, int inLen = -1, int ccsid = 0);
 inline int coz_nameUpper(char *szData, int inLen = -1);
-inline void coz_resignalMsg(qusec_t *ec);
 inline char *coz_getNextParmIf(int &pC, int &argc, char **argv, int ioFlag = 0);
 static int getJobInfo(Qwc_JOBI0400_t* pJobDesc);
 
-inline void coz_DLTOBJ(const char *qualObjName, const char *objType, const char *ASPName = "*");
+void coz_resignalMsg(qusec_t *ec);
+int rmvMsg(const char* msgtype, const char* msgkey=NULL);
 
+inline void coz_DLTOBJ(const char *qualObjName, const char *objType, const char *ASPName = "*");
 char *coz_TEMP_USRSPACE(char *rtnUSName, const char *objAttr = "SQLTOOLS", int initSize = 4096);
 char *coz_getPtrUsrSpace(const char *p2PartUsrSpaceName);
 void coz_makeAPIObjName(char *objName, const char *qualObj, const char *dftLib = "*LIBL");
@@ -1115,7 +1147,7 @@ int main(int argc, char *argv[])
         else
         {
             if (!fldText_to_jobCCSID.isOpen() ||
-                (fldText_to_jobCCSID.getFromCCSID() != pField->Field_Column_Heading_CCSID))
+                (fldText_to_jobCCSID.getFromCCSID() != pField->Field_Description_CCSID))
             {
                 if (fldText_to_jobCCSID.isOpen()) fldText_to_jobCCSID.close();
                 fldText_to_jobCCSID.open(pScratch->jobCCSID, pField->Field_Description_CCSID);
@@ -1177,10 +1209,10 @@ int main(int argc, char *argv[])
           //  {
                 *outHAS_DEFAULT = '1';
                 *indyDFTVALUE = 0;
-                _CPYBYTES(outDFTVALUE, pDefault, pField300->Length_of_DefaultVal);
-                outDFTVALUE[pField300->Length_of_DefaultVal] = 0x00;
-              //  _CPYBYTES(outDFTVALUE->data, pDefault, pField300->Length_of_DefaultVal);
-              //  outDFTVALUE->length = pField300->Length_of_DefaultVal;
+                const int MAX_DFTLEN = 2000;
+                int maxDftLen = std::min<int>(pField300->Length_of_DefaultVal, MAX_DFTLEN);
+                _CPYBYTES(outDFTVALUE, pDefault, maxDftLen);
+                outDFTVALUE[maxDftLen] = 0x00;
            // }
         }
 
@@ -1424,8 +1456,8 @@ inline char *coz_TEMP_USRSPACE(
 
     copyPad(extAttr, objAttr, 10);
     copyPad(pubAut, "*LIBCRTAUT", 10);
-    copyPad(text,
-            "SPOOLDATA UDTF Temp Space", 50);
+    copyPad(text,"FIELD_LIST UDTF Work Space", 50);
+
     copyPad(repl, "*NO", 10);
     copyPad(domain, "*DEFAULT", 10);
 
@@ -1437,6 +1469,8 @@ inline char *coz_TEMP_USRSPACE(
              repl, &ec, domain);
     if (ec.Bytes_Returned == 0)
     {
+        rmvMsg("*COMP",NULL);  // Remove the previous "Owner Changed for *USRSPC" msg from the joblog
+
         /* Enable auto-extend so the space grows   */
         /* automatically when APIs write past the  */
         /* initial size (e.g. QDBRTVFD).           */
@@ -1594,7 +1628,7 @@ coz_cu_exc:;
 /* coz_resignalMsg                               */
 /* Re-send an IBM i API error as a program msg.  */
 /* ============================================= */
-inline void coz_resignalMsg(qusec_t *ec)
+void coz_resignalMsg(qusec_t *ec)
 {
     char msgfile[21];
     char msgtype[11];
@@ -1604,7 +1638,7 @@ inline void coz_resignalMsg(qusec_t *ec)
     char msgType[3];
     qusec_t fc;
 
-    if (ec->Bytes_Returned > 0)
+    if (ec->Bytes_Returned == 0)
     {
         return;
     }
@@ -1664,6 +1698,51 @@ inline void coz_resignalMsg(qusec_t *ec)
              ec->Bytes_Returned - 16,
              msgtype, topgmq, 1,
              msgkey, &fc);
+}
+
+
+int rmvMsg(const char* msgtype, const char* msgkey)
+{
+     qusec_t      ec;
+
+     int             callStackCounter = 0;
+     char            callStack[10];
+     char            msgType[11];
+     char            msgKey[4];
+     Qmh_Rcvpm_RCVM0100_t   msgInfo;
+
+     memset((char*)callStack,' ',sizeof(callStack));
+     memset((char*)msgType,' ',  sizeof(msgType));
+     memset((char*)msgKey,0x00,  sizeof(msgKey));
+     memset((char*)&msgInfo, 0x00, sizeof(msgInfo));
+
+     callStack[0] ='*';
+     callStackCounter = 0;
+     if (msgtype != NULL && strlen(msgtype) > 4)
+     {
+       _CPYBYTES(msgType,msgtype,strlen(msgtype));
+     }
+     {
+       _CPYBYTES(msgType,"*PRVJLMSG ",10);
+     }
+     if (msgkey != NULL)
+     {
+       _CPYBYTES(msgKey,msgkey,4);
+     }
+
+     QMHRCVPM(&msgInfo, sizeof(msgInfo), QMH_FMT_RCVM0100,
+              callStack, callStackCounter, msgType, msgKey, 0,  // wait time is zero
+              QMH_MSGACT_SAME, &ec);
+
+     if (ec.Bytes_Returned  > 0)
+     {
+        return 0;
+     }
+     if (memcmp(msgInfo.Message_Id,"CPC2206",7)==0)  // Ownership change message?
+     {
+        QMHRMVPM(callStack, callStackCounter,msgInfo.Message_Key,"*BYKEY    ",&ec);
+     }
+     return 1;
 }
 
 /* ============================================= */

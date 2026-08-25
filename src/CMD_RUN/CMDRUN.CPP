@@ -58,6 +58,12 @@
 #include <QMHSNDPM.h>
 #include <QMHRCVPM.h>
 #include <QMHRTVM.h>
+#include <QUSCRTUS.h>
+#include <QUSCUSAT.h>
+#include <QUSPTRUS.h>
+#include <QLIDLTO.h>
+#include <QLGCASE.h>
+#include <QUSRJOBI.h>
 
 #include <qcapcmd.h>
 
@@ -287,21 +293,23 @@ inline char* coz_getNextParmIf(int& pC, int& argc, char** argv, int ioFlag = 0);
         (dest)[i_copy] = '\0';                  \
     } while (0)
 
-    // copyPad copies a fixed src to a fixed length target with blank padding
+    // copyPad copies maxLen bytes from a fixed src to a fixed target with blank padding
 inline void copyPad(char* dest, const char* src, int maxLen = 10)
 {
     memset(dest, ' ', maxLen);
-    _CPYBYTES(dest, src, maxLen);
+    _CPYBYTES(dest, src, std::min<int>(strlen(src),maxLen));
 }
 
-    // copyFromStr copies a C-string to a fixed length target but
+    // copyStrToFixed copies a C-string to a fixed length target but
     // copies no more than maxLen bytes.
-inline void copyFromStr(char* dest, const char* src, int maxLen = 10)
+inline void copyStrToFixed(char* dest, const char* src, int maxLen = 10)
 {
     memset(dest, ' ', maxLen);
     _CPYBYTES(dest, src, std::min<int>(strlen(src), maxLen));
 }
 
+// #define makeAPIQualName(qualName, nm, lib) \
+//    snprintf((qualName), 21, "%-10.10s%-10.10s", (nm).c_str(), (lib))
 
 #define makeAPIObjName(_out, _obj, _lib) \
  memset(_out, ' ', 10); \
@@ -310,31 +318,44 @@ inline void copyFromStr(char* dest, const char* src, int maxLen = 10)
  _CPYBYTES(_out+10, _lib, std::min<int>(10,strlen(_lib)))
 
 
-#define MAX_MSGTEXT_LEN 1024  // Limit message text to the first 1k of data
-#define MAX_SECLVL_LEN  2048  // Limit seclvl text to the first 2k of data
+#define MAX_MSGTEXT_LEN 2000  // Limit message text to the first 1k of data
+#define MAX_SECLVL_LEN  4000  // Limit seclvl text to the first 2k of data
 #define MAX_MSGKEY_COUNT 256  // Limit msgkeys saved and messages returned
 
 typedef _Packed struct tagScratch
 {
     int  len;  // scratch pad length as set by the SCRATCHPAD kwd in the UDTF
+    char MSGINFO[21];
     char pgmName[11];
     char libName[11];
     int eof;
     int syntaxOption;  // Check or Run QCAPCMD runtype control option
     int msgcount;
     int current_msg;
+    char RQSMSGKEY[4];
     char msgkey[MAX_MSGKEY_COUNT][4];
 } scratch_t;
 
 
-int getNextCmdMsg(scratch_t* pScratch, char* msgid, int* msgsev, char* pMsgType, char* msgtext, char* seclvl);
-inline int saveAllMsgKeys(scratch_t* pScratch);
+int getNextCmdMsg(scratch_t* pScratch, char* msgid, int* msgsev, char* pMsgType, char* msgtext, char* seclvl, Qmh_Rcvpm_Sender_t*& pSender);
+int collectAllMsgKeys(scratch_t* pScratch);
 int getMsgType(char* msgType, const char* msgtypeID);
 void logCtrlBlock(const Qca_PCMD_CPOP0100_t& ctrlBlock);
 int xlateCheckOption(const char* pProcessMode);
 
+char *extractCLCmdName(const char* pCmd, char* rtnCmdName, int rtnCmdNameBufferSize = 11);
+int isProhibitedCmd(const char* pCmd, char* pRtnCmdName, int rtnCmdNameBufferSize = 11);
+int sndMsg(const char *pMsgID, const char *pMsgfile = "QCPFMSG", const char *pMsgFLib = "*LIBL");
+
     // Prototype for retrieve Message text
 void rtvMsgText(char* pMsgText, int bufLen, coz_qusec& ec);
+int sndrcvRQS(const char* pCmd, int cmdLen, scratch_t* pScratch);
+int make3PartJobName(char* qualJob, const char* jobNbr, const char* jobUser, const char* jobName);
+int copyUntil(char* t, const char* s, int maxLen = 10, const char* stopAt = NULL, bool bTrim = false);
+
+void coz_DLTOBJ(const char *qualObjName, const char *objType, const char *ASPName = "*");
+char *coz_TEMP_USRSPACE(char *rtnUSName, const char *objAttr = "SQLTOOLS", int initSize = 4096);
+char *coz_getPtrUsrSpace(const char *p2PartUsrSpaceName);
 
 
 int main(int argc, char *argv[])
@@ -343,27 +364,39 @@ int main(int argc, char *argv[])
      /* Syntax Check or run CL commands via QCAPCMD API        */
      /**********************************************************/
 
-     int p = 0;
+    int p = 0;
 
-     //////////////////////////////////////////////
-     //  PARMS Parameter declaration section
-     //////////////////////////////////////////////
+    //////////////////////////////////////////////
+    //  PARMS Parameter declaration section
+    //////////////////////////////////////////////
 
-     //////////////////////////////////////////////
-     //  INPUT Parameters
-     //////////////////////////////////////////////
-     inChar(CMD);
-     inChar(PROCESSMODE);
+    //////////////////////////////////////////////
+    //  INPUT Parameters
+    //////////////////////////////////////////////
+    inChar(CMD);
+    inChar(PROCESSMODE);
 
-     //////////////////////////////////////////////
-     //  OUTPUT Parameters
-     //////////////////////////////////////////////
-     outSmallInt(ORDPOS);  // IBM's "ORDINAL_POSITION" column for sequencing help
-     outChar(MSGID);
-     outInt(MSGSEV);
-     outChar(MSGTYPE);
-     outChar(MSGTEXT);   // Varchar(1024)
-     outChar(SECLVL);    // Varchar(2048)
+    //////////////////////////////////////////////
+    //  OUTPUT Parameters
+    //////////////////////////////////////////////
+    outSmallInt(ORDPOS);  // IBM's "ORDINAL_POSITION" column for sequencing help
+    outChar(MSGID);
+    outInt(MSGSEV);
+    outChar(MSGTYPE);
+    outChar(SENDDTS);   // timestamp(0),
+    outChar(MSGTEXT);   // Varchar(2000)
+
+    outChar(SENDER);    // User profile underwhich the message is sent
+    outChar(SENDPGM);
+    outChar(SENDSTMT);   // char(4)
+    outChar(SENDMOD);
+    outChar(SENDPROC);
+
+    outChar(TOPGM);
+    outChar(TOSTMT);      // char(4),
+    outChar(TOMOD);
+    outChar(TOPROC);
+    outChar(SECLVL);    // Varchar(4000)
 
      //////////////////////////////////////////////
      //  Input Indicator Fields
@@ -387,14 +420,25 @@ int main(int argc, char *argv[])
     outIndy(MSGID);      // set to 0 by the macro
     outIndy(MSGSEV);
     outIndy(MSGTYPE);
+    outIndy(SENDDTS);   // timestamp(0),
     outIndy(MSGTEXT);    // 1st Level message text
+
+    outIndy(SENDER);
+    outIndy(SENDPGM);
+    outIndy(SENDMOD);
+    outIndy(SENDPROC);
+    outIndy(SENDSTMT);   // char(4)
+    outIndy(TOPGM);
+    outIndy(TOMOD);
+    outIndy(TOPROC);
+    outIndy(TOSTMT);      // char(4),
     outIndy(SECLVL);     // 2nd level message test
 
      ////////////////////////////////////////////////////////////
      //  SQL specific parameters
      ////////////////////////////////////////////////////////////
      char *sqlstate     = (char *)coz_getNextParmIf(p, argc, argv);
-     char *funcName     = (char *)coz_getNextParmIf(p, argc, argv);
+     char *sqlFuncName     = (char *)coz_getNextParmIf(p, argc, argv);
      char *specificName = (char *)coz_getNextParmIf(p, argc, argv);
      char *sqlmsgtext   = (char *)coz_getNextParmIf(p, argc, argv);
      char *scratchPad   = (char *)coz_getNextParmIf(p, argc, argv);
@@ -422,8 +466,8 @@ int main(int argc, char *argv[])
         if (pScratch != NULL) {
             const int len = pScratch->len;
             if (len < (int) sizeof(scratch_t)) {
-              Qp0zLprintf("[%s] Warning Scratch Pad Length=%d expected length=%d\n",funcName,len, (int) sizeof(scratch_t));
-              Qp0zLprintf("Change %s UDTF SCRATCHPAD keyword to at least %d bytes\n",funcName, (int) sizeof(scratch_t));
+              Qp0zLprintf("[%s] Warning Scratch Pad Length=%d expected length=%d\n",sqlFuncName,len, (int) sizeof(scratch_t));
+              Qp0zLprintf("Change %s UDTF SCRATCHPAD keyword to at least %d bytes\n",sqlFuncName, (int) sizeof(scratch_t)+4);
               strcpy(sqlstate,"02000");
               return 0;
             }
@@ -432,11 +476,13 @@ int main(int argc, char *argv[])
             pScratch->len = len;          // re-assign the saved scratch pad length to the len member variable.
         }
         else {
-            Qp0zLprintf("[%s] Warning Scratch Pad Length is 0 or NULL expected length=%d\n",funcName, (int) sizeof(scratch_t));
-            Qp0zLprintf("Change %s UDTF SCRATCHPAD keyword to at least %d bytes\n",funcName, (int) sizeof(scratch_t));
+            Qp0zLprintf("[%s] Warning Scratch Pad Length is 0 or NULL expected length=%d\n",sqlFuncName, (int) sizeof(scratch_t));
+            Qp0zLprintf("Change %s UDTF SCRATCHPAD keyword to at least %d bytes\n",sqlFuncName, (int) sizeof(scratch_t));
             strcpy(sqlstate,"02000");
             return 0;
         }
+
+        // "this" program's name
 
         pgm.Template_Size = sizeof(pgm);
         _MATPGMNM( &pgm );
@@ -454,6 +500,7 @@ int main(int argc, char *argv[])
     ctrlBlock.Command_String_Syntax = '0';  // 0 = IBM i syntax, 1 = System/38
     ctrlBlock.CCSID_Command_String = 0;
     memset(ctrlBlock.Message_Key,' ', sizeof(ctrlBlock.Message_Key));
+    coz_TEMP_USRSPACE(pScratch->MSGINFO, "C4I_CMDRUN");
 
 
      int cmdLen = strlen(inCMD);   // Input CMD string length
@@ -484,17 +531,33 @@ int main(int argc, char *argv[])
       }
 
       // logCtrlBlock(ctrlBlock);  // Used for development only
-
+      int exceptionErrorHandlerTriggered = 0;
 
 #pragma exception_handler(MONMSG, 0, 0, _C2_MH_ESCAPE | _C2_MH_FUNCTION_CHECK,\
                           _CTLA_HANDLE )
 
-      ec.clear();  // runtime errors get swallowed by the ec parameter
+        sndrcvRQS(inCMD, cmdLen, pScratch);  // log CL command as a *RQS message
+        char cmdName[11];
+        if (isProhibitedCmd(inCMD, cmdName, sizeof(cmdName)))
+        {
+            sndMsg("CPF1038");
+            strcpy(sqlstate, "57014");
+            sprintf(sqlmsgtext,"For security reasons, command %s is not supported by %s.",
+                                cmdName, sqlFuncName);
+            Qp0zLprintf("SQLSTATE=%s Cause: %s\n","57014",sqlmsgtext);
+            pScratch->eof = 1;
+            return -1; // Restricted CL Command name
+        }
+
+        ec.clear();  // runtime errors get swallowed by the ec parameter
                    // so we clear it (set Bytes_Provided = 0) so all
                    // errors are pushed to the joblog. Ironically,
                    // this does not cause a runtime error for the QCAPCMD API.
                    // Likely because we used an exception_handler monitor.
-        // RUN CL Command using QCAPCMD
+
+          // MONMSG MSGID(CPF1907) ENDRQS (similar to SysReq -> 2 <Enter>)
+ #pragma exception_handler(ENDRQS, 0,0, _C2_MH_ESCAPE, _CTLA_HANDLE_NO_MSG, "CPF1907")
+         // RUN CL Command using QCAPCMD
       QCAPCMD(inCMD,
               cmdLen,
               &ctrlBlock,
@@ -505,17 +568,29 @@ int main(int argc, char *argv[])
               &rtnUpdatedCmdLen,
               &ec);
 
+            goto  CLEAN_RUN; // Sorry. Legacy requirement for traping errors
+ENDRQS:
+            strcpy(sqlstate,"02000");
+            pScratch->eof = 1;
 MONMSG:
         // When an error occurs on the API call that is something like a parameter error,
         // then do your handler coding here and then "goto CONTINUE;"
-        Qp0zLprintf("[CMD_RUN] Detected an Error. See low-level messages in joblog for details\n");
+        exceptionErrorHandlerTriggered = 1;
 
 #pragma disable_handler
+#pragma disable_handler
 
-CONTINUE:
+CLEAN_RUN:
 
+      int keyCount = collectAllMsgKeys(pScratch);
+
+      if (exceptionErrorHandlerTriggered > 0 && keyCount > 0)
+      {
+          Qp0zLprintf("[CMD_RUN] detected %d errors. %s\n", keyCount,
+                        "See resultset data or low level messages for details.");
+      }
       // Fetch and save the first 200 message keys to the scratch pad
-      if (saveAllMsgKeys(pScratch) == 0)
+      if (keyCount == 0)
       {
         pScratch->eof = 1;
         strcpy(sqlstate,"02000");
@@ -531,29 +606,88 @@ CONTINUE:
       // SQLUDF_TF_FETCH  - F E T C H
     if (*sqlOpCode == SQLUDF_TF_FETCH)
     {
+        Qmh_Rcvpm_Sender_t* pSender = NULL;
+
         // Qp0zLprintf("[CMD_RUN] FETCH detects %d msgkeys\n", pScratch->msgcount);
-        if (!getNextCmdMsg(pScratch, outMSGID, outMSGSEV, outMSGTYPE, outMSGTEXT, outSECLVL))
+        if (!getNextCmdMsg(pScratch, outMSGID, outMSGSEV, outMSGTYPE, outMSGTEXT, outSECLVL, pSender))
         {
             pScratch->eof = 1;
             strcpy(sqlstate,"02000");
             return 0;
         }
         *outORDPOS = pScratch->current_msg;  // Ordinal is a 1's based value
+
+        if (pSender != NULL)
+        {
+
+            snprintf(outSENDDTS, 28, "20%.2s-%.2s-%.2s-%.2s.%.2s.%.2s.%.6s",
+                                pSender->Send_Date + 1,
+                                pSender->Send_Date + 3,
+                                pSender->Send_Date + 5,
+                                pSender->Send_Time,
+                                pSender->Send_Time + 2,
+                                pSender->Send_Time + 4,
+                                pSender->Send_Time_Microseconds);
+           // Qp0zLprintf("Sent DTS: %s\n", outSENDDTS);
+            copyUntil(outSENDER,  pSender->Send_User_Name, 10);
+
+            copyUntil(outSENDPGM, pSender->Send_Program_Name,10);
+            copyUntil(outSENDMOD, pSender->Send_Module_Name,10);
+            copyUntil(outSENDPROC, pSender->Send_Procedure_Name,255);
+            copyUntil(outTOPGM, pSender->Receive_Program_Name,10);
+            copyUntil(outTOMOD, pSender->Receive_Module_Name,10);
+            copyUntil(outTOPROC, pSender->Receive_Procedure_Name,255);
+            if (memcmp(outSENDPGM,"*N",2)==0) outSENDPGM[0] = 0x00;
+            if (memcmp(outSENDMOD,"*N",2)==0) outSENDMOD[0] = 0x00;
+            if (memcmp(outSENDPROC,"*N",2)==0) outSENDPROC[0] = 0x00;
+
+            if (memcmp(outTOPGM,"*N",2)==0) outTOPGM[0] = 0x00;
+            if (memcmp(outTOMOD,"*N",2)==0) outTOMOD[0] = 0x00;
+            if (memcmp(outTOPROC,"*N",2)==0) outTOPROC[0] = 0x00;
+
+            if (pSender->Send_Statements_Available > 0)
+            {
+                copyUntil(outSENDSTMT, pSender->Send_Statements,4);
+            }
+            else
+            {
+                *indySENDSTMT = -1;
+            }
+
+            if (pSender->Receive_Statements_Available > 0)
+            {
+                copyUntil(outTOSTMT, pSender->Receive_Statements,4);
+            }
+            else
+            {
+                *indyTOSTMT = -1;
+            }
+        }
+        else
+        {
+            *indySENDER  = -1;
+            *indySENDPGM = -1;
+            *indySENDMOD = -1;
+            *indySENDPROC = -1;
+            *indySENDSTMT = -1;
+            *indyTOPGM = -1;
+            *indyTOMOD = -1;
+            *indyTOPROC = -1;
+            *indyTOSTMT  = -1;
+            *indySENDDTS = -1;
+        }
     }
+
     if (*sqlOpCode == SQLUDF_TF_CLOSE)
     {
-        // Add normal cleanup code here.
+        coz_DLTOBJ(pScratch->MSGINFO, "*USRSPC");
     }
     if (*sqlOpCode == SQLUDF_TF_FINAL ||
         *sqlOpCode == SQLUDF_TF_FINAL_CRA)
     {
-        // Release non-SQL resources.
-        // On FINAL_CRA, do not issue SQL other than CLOSE cursor.
-
-        // If this function later allocates resources that require cleanup after
-        // an normal or abnormal termination, handle SQLUDF_TF_FINAL and SQLUDF_TF_FINAL_CRA,
-        // then change the UDTF defintion from "NO FINAL CALL" to "FINAL CALL".
+        // no final call code for now
     }
+
 
 }  // end main
 
@@ -718,9 +852,9 @@ void rtvMsgText(char* pMsgText, int bufLen, coz_qusec& ec)
 
       memset(pMsgText,0x00, bufLen);
       memset(buffer,0x00, sizeof(buffer));
-      copyFromStr(includeMSGDATA,"*YES");
-      copyFromStr(fmtCTL,"*NO");
-      copyPad(msgid,ec.msgid(),7);
+      copyStrToFixed(includeMSGDATA,"*YES");
+      copyStrToFixed(fmtCTL,"*NO");
+      copyStrToFixed(msgid,ec.msgid(),7);
 
      QMHRTVM(buffer,
              sizeof(buffer),
@@ -742,9 +876,9 @@ void rtvMsgText(char* pMsgText, int bufLen, coz_qusec& ec)
 // This function grabs each command generated by the syntax checker
 // Note that normally, only the first one (which is usually the last
 // syntax error, is returned.
-int getNextCmdMsg(scratch_t* pScratch, char* msgid, int* msgsev, char* msgtype, char* msgtext, char* seclvl)
+int getNextCmdMsg(scratch_t* pScratch, char* msgid, int* msgsev, char* msgtype, char* msgtext, char* seclvl, Qmh_Rcvpm_Sender_t*& pSender)
 {
-  char APIFMT[]  = "RCVM0200";
+
   char MSGTYPE[] = "*ANY      ";
   char MSGQ[11]  = "*         ";
   char MSGKEY[4] = {0};   // initialized to all x'00'
@@ -752,12 +886,12 @@ int getNextCmdMsg(scratch_t* pScratch, char* msgid, int* msgsev, char* msgtype, 
 
   int  CALLSTACK = 0;
   int  WAIT = 0;
-
-  char msgBuffer[4096];
-  Qmh_Rcvpm_RCVM0200_t* pMsgInfo = (Qmh_Rcvpm_RCVM0200_t*)msgBuffer;
   coz_qusec ec;
 
-  memset(msgBuffer, 0x00, sizeof(msgBuffer));
+  Qmh_Rcvpm_RCVM0300_t* pMsgInfo = (Qmh_Rcvpm_RCVM0300_t*) coz_getPtrUsrSpace(pScratch->MSGINFO);
+  char* msgBuffer = (char*) pMsgInfo;
+
+  memset((char*)pMsgInfo, 0x00, sizeof(1000));
 
     if (pScratch->msgcount <= 0) return 0;
     if (pScratch->current_msg >= pScratch->msgcount) return 0;
@@ -770,13 +904,22 @@ int getNextCmdMsg(scratch_t* pScratch, char* msgid, int* msgsev, char* msgtype, 
 
     _CPYBYTES(MSGKEY,pScratch->msgkey[m], 4);  // Update to this msgkey
 
-  QMHRCVPM(msgBuffer, sizeof(msgBuffer), QMH_FMT_RCVM0200,
-           MSGQ, CALLSTACK,
-           MSGTYPE,
-           MSGKEY,
-           WAIT,
-           QMH_MSGACT_OLD, &ec);
+    char callStackEntry[20];
+    char callStackEntry_Type[10];
+    int returningCCSID = 0; // Return MSGTEXT and MSGDATA in Job CCSID
+    int callStackEntry_Len = 10;
+    copyStrToFixed(callStackEntry, "*NONE", 10);
+    copyStrToFixed(callStackEntry + 10, "*NONE", 10);
+    copyStrToFixed(callStackEntry_Type, "*CHAR", 10);
 
+    QMHRCVPM((char*)pMsgInfo, coz_MAXMEM15M, QMH_FMT_RCVM0300,
+             MSGQ, CALLSTACK,
+             MSGTYPE,
+             MSGKEY,
+             WAIT,
+             QMH_MSGACT_OLD, &ec,
+             callStackEntry_Len, callStackEntry, callStackEntry_Type,
+             returningCCSID);
 
   if (ec.hasNoError() && pMsgInfo->Bytes_Returned > 8)
   {
@@ -784,9 +927,10 @@ int getNextCmdMsg(scratch_t* pScratch, char* msgid, int* msgsev, char* msgtype, 
       *msgsev = pMsgInfo->Message_Severity;
       getMsgType(msgtype, pMsgInfo->Message_Type);
 
-      int off_msgdata = sizeof(Qmh_Rcvpm_RCVM0200_t);  // msgdata and/or impromptu message text
+      int off_msgdata = sizeof(Qmh_Rcvpm_RCVM0300_t);  // msgdata and/or impromptu message text
       int off_msgtext = off_msgdata + pMsgInfo->Length_Data_Returned;
       int off_seclvl  = off_msgtext + pMsgInfo->Length_Message_Returned;
+      int off_sender  = off_seclvl  + pMsgInfo->Length_Help_Returned;
 
       if (memcmp(msgid,blanks7,7) == 0) // ImpromptU message
       {
@@ -804,24 +948,95 @@ int getNextCmdMsg(scratch_t* pScratch, char* msgid, int* msgsev, char* msgtype, 
         _CPYBYTES(seclvl, msgBuffer + off_seclvl, std::min<int>(MAX_SECLVL_LEN,pMsgInfo->Length_Help_Returned));
         seclvl[std::min<int>(MAX_SECLVL_LEN,pMsgInfo->Length_Help_Returned)] = 0x00;
       }
+      // Qp0zLprintf("Sender Offset: %d Length: %d Avail: %d\n",
+      //                          off_sender,
+      //                          pMsgInfo->Length_Send_Returned,
+      //                          pMsgInfo->Length_Send_Available);
+
+      if (pMsgInfo->Length_Send_Returned > 0)  // Sender Info
+      {
+          pSender = (Qmh_Rcvpm_Sender_t*)(msgBuffer + off_sender);
+      }
       return 1;
   }
   return 0;
 }
 
-// If errors are returned, then save all the message keys.
-inline int saveAllMsgKeys(scratch_t* pScratch)
+
+
+/* ============================================= */
+/* coz_copyUntil                                 */
+/* Copy s to t (null-terminated), stopping at   */
+/* maxLen, NUL, or any char in stopAt.           */
+/* ============================================= */
+int copyUntil(
+                char*       t,
+                const char* s,
+                int         maxLen,
+                const char* stopAt,
+                bool        bTrim)
 {
-  char APIFMT[] = "RCVM0200";
+    int bStop  = 0;
+    int rtnLen = 0;
+    int i      = 0;
+    if (t == NULL || s == NULL) return 0;
+#pragma exception_handler(coz_cu_exc,\
+    0, 0,\
+    _C2_MH_ESCAPE | _C2_MH_FUNCTION_CHECK,\
+    _CTLA_HANDLE)
+    memset(t, ' ', maxLen);
+    while (s[i] != 0x00 && i < maxLen) {
+        if (stopAt != NULL) {
+            size_t j;
+            for (j = 0; j < strlen(stopAt); j++) {
+                if (s[i] == stopAt[j]) {
+                    bStop = 1;
+                }
+            }
+        }
+        if (bStop) break;
+        t[i] = s[i];
+        i++;
+    }
+    if (bTrim) {
+        t[i] = 0x00;
+        if (i > 0)
+            t[::triml(t, ' ')] = 0x00;
+        rtnLen = (int)strlen(t);
+    } else {
+        rtnLen = i;
+    }
+#pragma disable_handler
+    return rtnLen;
+coz_cu_exc:;
+    return rtnLen;
+}
+
+int make3PartJobName(char* qualJob, const char* jobNbr, const char* jobUser, const char* jobName)
+{
+    char jUser[11];
+    char jName[11];
+    char jNbr[7];
+    copyUntil(jUser, jobUser, 10);
+    copyUntil(jName, jobName, 10);
+    copyUntil(jNbr, jobNbr, 6);
+    sprintf(qualJob, "%s/%s/%s", jNbr, jUser, jName);
+    return strlen(qualJob);
+}
+
+// If errors are returned, then save all the message keys.
+inline int collectAllMsgKeys(scratch_t* pScratch)
+{
+  char APIFMT[] = "RCVM0100";
   char MSGKEY[4];
-  char MSGTYPE[11] = "*NEXT     ";
+  char MSGTYPE[11] = "*NXTJLMSG ";
   char MSGQ[11]    = "*         ";
-  int  CALLSTACK   = 1;   // Must be 1 or it doesn't work (i.e., 0 is wrong)
+  int  CALLSTACK   = 0;   // Must be 1 or it doesn't work (i.e., 0 is wrong)
   int  WAIT = 0;
 
   char msgBuffer[4096];
 
-  Qmh_Rcvpm_RCVM0200_t* pMsgInfo = (Qmh_Rcvpm_RCVM0200_t*)msgBuffer;
+  Qmh_Rcvpm_RCVM0100_t* pMsgInfo = (Qmh_Rcvpm_RCVM0100_t*)msgBuffer;
   coz_qusec ec;
 
 
@@ -835,15 +1050,19 @@ inline int saveAllMsgKeys(scratch_t* pScratch)
     {
         _CPYBYTES(MSGKEY,pScratch->msgkey[m], 4);  // Update to next msgkey
     }
+    else
+    {
+        _CPYBYTES(MSGKEY,pScratch->RQSMSGKEY, 4);  // Update to next msgkey
+    }
 
     memset(msgBuffer, 0x00, sizeof(msgBuffer));
 
-    QMHRCVPM(msgBuffer, sizeof(msgBuffer), QMH_FMT_RCVM0200,
+    QMHRCVPM(msgBuffer, sizeof(msgBuffer), QMH_FMT_RCVM0100,
              MSGQ, CALLSTACK,
              MSGTYPE,
              MSGKEY,
              WAIT,
-             QMH_MSGACT_OLD, &ec);
+             QMH_MSGACT_SAME, &ec);
     if (ec.hasNoError() && pMsgInfo->Bytes_Returned > 8)
     {   // Save the msgkey
       _CPYBYTES(pScratch->msgkey[pScratch->msgcount], pMsgInfo->Message_Key, 4);
@@ -925,6 +1144,323 @@ int getMsgType(char* msgType, const char* msgtypeID)
     }
 
     return typeCode;
+}
+
+
+/* ============================================= */
+/* Parse optional label prefix and copy command. */
+/* Accepts: "label: CMD ..." or "CMD ..."       */
+/* Returns pointer to command token in inText.   */
+/* ============================================= */
+char* extractCLCmdName(const char *inText, char *outCmd, int outCmdSize)
+{
+    const unsigned char *p;
+    const unsigned char *q;
+    const unsigned char *colon = NULL;
+    const unsigned char *cmdStart;
+    int len;
+
+    if (outCmd == NULL || outCmdSize <= 0)
+    {
+        return NULL;
+    }
+
+    outCmd[0] = 0x00;
+
+    if (inText == NULL)
+    {
+        return NULL;
+    }
+
+    p = (const unsigned char *)inText;
+    while (*p != 0x00 && std::isspace(*p))
+    {
+        ++p;
+    }
+    if (*p == 0x00)
+    {
+        return NULL;
+    }
+
+    q = p;
+    while (*q != 0x00)
+    {
+        if (std::isspace(*q))
+        {
+            break;
+        }
+        if (*q == ':')
+        {
+            colon = q;
+            break;
+        }
+        ++q;
+    }
+
+    if (colon != NULL)
+    {
+        cmdStart = colon + 1;
+        while (*cmdStart != 0x00 && std::isspace(*cmdStart))
+        {
+            ++cmdStart;
+        }
+    }
+    else
+    {
+        cmdStart = p;
+    }
+
+    if (*cmdStart == 0x00)
+    {
+        return NULL;
+    }
+
+    q = cmdStart;
+    while (*q != 0x00 && !std::isspace(*q))
+    {
+        ++q;
+    }
+
+    len = (int)(q - cmdStart);
+    if (len >= outCmdSize)
+    {
+        len = outCmdSize - 1;
+    }
+
+    if (len > 0)
+    {
+        memcpy(outCmd, cmdStart, len);
+    }
+    outCmd[len] = 0x00;
+
+    return (char *)cmdStart;
+}
+
+int isProhibitedCmd(const char* pCmd,  char* pRtnCmdName, int rtnCmdNameBufferSize)
+{
+    // Security gate: block selected high-impact CL commands from this UDTF
+    // even when a caller has authority to run them interactively.
+    memset(pRtnCmdName, 0x00, rtnCmdNameBufferSize);
+
+    // Parse only the command token from input text (supports optional labels,
+    // such as "label: CPYF TOFILE(...)").
+    const char* pCmdString = extractCLCmdName(pCmd, pRtnCmdName, rtnCmdNameBufferSize);
+
+    // Maintain prohibited command names in one list for easy policy updates.
+    static const char *secureCmd[] = {"PWRDWNSYS", "ENDSYS", "ENDTCPSVR"};
+
+    if (pCmdString == NULL || pRtnCmdName[0] == 0x00)
+    {
+        return 0;
+    }
+
+    // Compare case-insensitively by normalizing the extracted token to uppercase.
+    makeUpper(pRtnCmdName);
+
+    for (size_t i = 0; i < (sizeof(secureCmd) / sizeof(secureCmd[0])); ++i)
+    {
+        if (strcmp(pRtnCmdName, secureCmd[i]) == 0)
+        {
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
+int sndMsg(const char *pMsgID, const char *pMsgfile, const char *pMsgFLib)
+{
+    int ctlInv = 1;
+    char msgfile[20];
+    char msgKey[4];
+    char msgData[64];
+    qusec_t ec;
+
+    memset((char *)msgfile, ' ', sizeof(msgfile));
+    memset((char *)msgKey, ' ', sizeof(msgKey));
+    memset((char *)msgData, 0x00, sizeof(msgData));
+    makeAPIObjName(msgfile, pMsgfile, pMsgFLib);
+    memset((char *)&ec, 0x00, sizeof(ec));
+    ec.Bytes_Provided = sizeof(ec);
+    QMHSNDPM((char*)pMsgID, msgfile, (char *)msgData, 0,
+             QMH_MSGT_DIAG, QMH_INV_MSG_Q_CURRENT, ctlInv, msgKey, &ec);
+    return 0;
+}
+
+int sndrcvRQS(const char* pCmd, int cmdLen, scratch_t* pScratch)
+{
+    int             ctlInv = 0;
+    char            msgfile[20];
+    char            replyMSGQ[20];
+    char            msgID[7];
+    char            msgType[11];
+    char            toPgmq[10];
+    char            msgKey[4];
+    char            msgInfo[1024];
+    qusec_t         ec;
+
+    memset((char*)msgID,' ',sizeof(msgID));
+    memset((char*)msgfile,' ',sizeof(msgfile));
+    memset((char*)msgType,' ',sizeof(msgType));
+    memset((char*)toPgmq,' ',sizeof(toPgmq));
+    memset((char*)msgKey,' ',sizeof(msgKey));
+
+    _CPYBYTES(msgType,QMH_MSGT_RQS,sizeof(QMH_MSGT_RQS));
+    _CPYBYTES(toPgmq,QMH_INV_MSG_Q_EXT,sizeof(QMH_INV_MSG_Q_EXT));
+    ctlInv = 1;
+
+    // If requested, log the CL Command as a *RQS message, using SendPgmMsg.
+    memset((char*)&ec,0x00,sizeof(ec));
+    ec.Bytes_Provided = sizeof(ec);
+    QMHSNDPM(msgID, msgfile, (char*) pCmd, cmdLen,
+            msgType, toPgmq, ctlInv, msgKey, &ec);
+    memset((char*)msgInfo, 0x00, sizeof(msgInfo));
+    _CPYBYTES(pScratch->RQSMSGKEY, msgKey, sizeof(msgKey));
+
+    QMHRCVPM(msgInfo, sizeof(msgInfo), QMH_FMT_RCVM0100,
+                    toPgmq, ctlInv, msgType, msgKey, 0,  // wait time is zero
+                    QMH_MSGACT_OLD, &ec);
+    return 0;
+}
+
+
+
+inline char *coz_getPtrUsrSpace(const char *p2PartUsrSpaceName)
+{
+    void *pUS = NULL;
+    qusec_t ec;
+    memset(&ec, 0x00, sizeof(ec));
+    ec.Bytes_Provided = sizeof(ec);
+
+    QUSPTRUS((char *)p2PartUsrSpaceName,
+             &pUS, &ec);
+    if (ec.Bytes_Returned == 0 && pUS != NULL)
+    {
+        return (char *)pUS;
+    }
+    return NULL;
+}
+
+/* ============================================= */
+/* coz_TEMP_USRSPACE                             */
+/* Create a temporary *USRSPC in QTEMP.          */
+/* Returns a pointer to user-space.              */
+/* stores 20-char API name in rtnUSName[20].     */
+/* ============================================= */
+inline char *coz_TEMP_USRSPACE(
+    char *rtnUSName,
+    const char *objAttr,
+    int initSize)
+{
+    char qualName[21];
+    char extAttr[11];
+    char pubAut[11];
+    char text[51];
+    char repl[11];
+    char domain[11];
+    char initVal = 0x00;
+    char *pUS = NULL;
+    qusec_t ec;
+    std::string nm;
+    size_t pos = 0;
+    memset(qualName, ' ', 20);
+    qualName[20] = 0x00;
+    nm = tmpnam(NULL);
+    pos = nm.find_last_of("/\\");
+    if (pos != std::string::npos)
+        nm.erase(0, pos + 1);
+    if (nm.length() > 10)
+        nm.resize(10);
+
+            // "Safe" - Make 2-part API qualified name buffer
+    makeAPIObjName(qualName, nm.c_str(), "QTEMP");
+
+    makeUpper(qualName, 20);
+
+    copyPad(extAttr, objAttr, 10);
+    copyPad(pubAut, "*LIBCRTAUT", 10);
+    copyPad(text,
+            "SPOOLDATA UDTF Temp Space", 50);
+    copyPad(repl, "*NO", 10);
+    copyPad(domain, "*DEFAULT", 10);
+
+    memset(&ec, 0x00, sizeof(ec));
+    ec.Bytes_Provided = sizeof(ec);
+
+    QUSCRTUS(qualName, extAttr, initSize,
+             &initVal, pubAut, text,
+             repl, &ec, domain);
+    if (ec.Bytes_Returned == 0)
+    {
+        /* Enable auto-extend so the space grows   */
+        /* automatically when APIs write past the  */
+        /* initial size (e.g. QDBRTVFD).           */
+        /* key=3 is AutoExtend; key=1=size,        */
+        /* key=2=InitChar, key=4=TransferSize.     */
+        typedef _Packed struct
+        {
+            int key;
+            int dataLen;
+            union
+            {
+                int size;
+                int transferSize;
+                char autoExtend;
+                char initValue;
+            };
+        } coz_spaceKey_t;
+        typedef _Packed struct
+        {
+            int count;
+            coz_spaceKey_t attr[1];
+        } coz_spaceAttr_t;
+        coz_spaceAttr_t spaceAttr;
+        spaceAttr.count = 1;
+        spaceAttr.attr[0].key = 3;
+        spaceAttr.attr[0].dataLen = 1;
+        spaceAttr.attr[0].autoExtend = '1';
+        char rtnLib[10];
+        memset(rtnLib, ' ', sizeof(rtnLib));
+
+        memset(&ec, 0x00, sizeof(ec));
+        ec.Bytes_Provided = sizeof(ec);
+
+        QUSCUSAT(rtnLib, qualName, &spaceAttr, &ec);
+        /* Non-fatal if QUSCUSAT fails \Z space     */
+        /* will still work, just won't auto-grow.  */
+        memset(&ec, 0x00, sizeof(ec));
+        ec.Bytes_Provided = sizeof(ec);
+        QUSPTRUS(qualName, (void **)&pUS, &ec);
+    }
+    if (pUS != NULL && rtnUSName != NULL)
+        _CPYBYTES(rtnUSName, qualName, 20);
+    return pUS;
+}
+
+
+/* ============================================= */
+/* coz_DLTOBJ                                    */
+/* Delete an IBM i object via QLIDLTO API.       */
+/* ============================================= */
+void coz_DLTOBJ(
+    const char *qualObjName,
+    const char *objType,
+    const char *ASPName)
+{
+    char szObjType[11];
+    char szASP[11];
+    char rmvMsg[1] = {'1'};
+    qusec_t ec;
+    if (qualObjName == NULL ||
+        qualObjName[0] == ' ' ||
+        qualObjName[0] == 0x00)
+        return;
+    copyPad(szObjType, objType, 10);
+    copyPad(szASP, ASPName, 10);
+    memset(&ec, 0x00, sizeof(ec));
+    QLIDLTO((char *)qualObjName,
+            szObjType, szASP,
+            rmvMsg, &ec);
 }
 
 
