@@ -1,10 +1,9 @@
 
-   -- SQL Tools UDF - Object-Related Functions
-   --  DLTOBJ(<lib>,<object>,<obj-type>);
-  -- NOTE: Since there is no SQL/PL
-  -- the catalogs contain DLTOBJ in SYSPROCS
-  --  ST_DLTOBJF in SYSFUNCS
-  -- But SYSROUTINES only contains ST_DLTOBJ as a ROUTINE
+-- SPDX-License-Identifier: Apache-2.0
+-- Copyright (c) 1996-2026 by R. Cozzi, Jr.
+-- @author BobCozzi
+
+   -- SQL Tools UDF - (DLTOBJ) Delete Object
 
 CREATE or REPLACE FUNCTION sqltools.DLTOBJ (
                                  LIBRARY_NAME varchar(128) DEFAULT '*LIBL',
