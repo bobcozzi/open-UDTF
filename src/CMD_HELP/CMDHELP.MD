@@ -1,7 +1,7 @@
 # CMD_HELP — CL Command Help Text UDTF
 
 Returns the XML help text for a CL command's panel group, retrieved via the
-IBM i `QUHRHLPT` system API.  Because the implementation is pure ILE C++ there
+IBM i system connect.  Because the implementation is pure ILE C++ there
 is no JVM startup overhead — results are available immediately on any connection.
 
 At most **one row** is returned per call.  The XML content mirrors what the
@@ -15,10 +15,10 @@ At most **one row** is returned per call.  The XML content mirrors what the
 
 ## Source files
 
-| File | Target member | Purpose |
-|------|---------------|---------|
-| `/src/CMD_HELP/CMDHELP.CPP` | `SQLTOOLS/QCSRC(CMDHELP)` | ILE C++ UDTF program |
-| `/src/CMD_HELP/CMDHELP.SQL` | `SQLTOOLS/QUDFSRC(CMDHELP)` | SQL UDTF definition |
+| File                        | Target member               | Purpose              |
+| --------------------------- | --------------------------- | -------------------- |
+| `/src/CMD_HELP/CMDHELP.CPP` | `SQLTOOLS/QCSRC(CMDHELP)`   | ILE C++ UDTF program |
+| `/src/CMD_HELP/CMDHELP.SQL` | `SQLTOOLS/QUDFSRC(CMDHELP)` | SQL UDTF definition  |
 
 ---
 
@@ -47,11 +47,11 @@ SELECT HELP_XML
 The library used to locate the `*CMD` object named on `CMD_NAME`.
 The value is case-insensitive.
 
-| Value | Meaning |
-|-------|---------|
-| `*LIBL` *(default)* | Job library list |
-| `*CURLIB` | Job's current library |
-| *library-name* | Specific library |
+| Value               | Meaning               |
+| ------------------- | --------------------- |
+| `*LIBL` *(default)* | Job library list      |
+| `*CURLIB`           | Job's current library |
+| *library-name*      | Specific library      |
 
 ---
 
@@ -68,7 +68,7 @@ The value is case-insensitive.
 
 A delimited list of Help IDs whose text is to be returned. Tokens may be
 separated by blanks, commas, or colons.  Each token is a keyword (parameter
-name) of the specified command. The value is case-insensitive. The special value
+name) of the specified command. Upper/lower case is ignored. The special value
 `*CMD` may be specified to indicate that the main command help text is to be returned.
 `*CMD` may be included with the list of other helpid's. The command name itself may
 also be specified.
@@ -90,8 +90,8 @@ help text IDs.
 
 ## Result columns
 
-| Column | Type | Description |
-|--------|------|-------------|
+| Column     | Type                   | Description                                                     |
+| ---------- | ---------------------- | --------------------------------------------------------------- |
 | `HELP_XML` | `CLOB(16M) CCSID 1208` | XML help text returned by `QUHRHLPT` for the requested Help IDs |
 
 > **Note:** The UDTF always returns exactly one row.  The XML structure is
@@ -156,11 +156,11 @@ SELECT x.*
 
 ## Error handling
 
-| Condition | Behaviour |
-|-----------|-----------|
-| Command not found / `QCDRCMDI` fails | SQLSTATE `02000` (no data); function returns −1 |
-| `QUHRHLPT` error | Error message is re-signalled to the caller |
-| Invalid / empty `HELPID` | No tokens are built; `QUHRHLPT` is called with zero IDs and returns empty XML |
+| Condition                            | Behaviour                                                                     |
+| ------------------------------------ | ----------------------------------------------------------------------------- |
+| Command not found / `QCDRCMDI` fails | SQLSTATE `02000` (no data); function returns −1                               |
+| `QUHRHLPT` error                     | Error message is re-signalled to the caller                                   |
+| Invalid / empty `HELPID`             | No tokens are built; `QUHRHLPT` is called with zero IDs and returns empty XML |
 
 ---
 
