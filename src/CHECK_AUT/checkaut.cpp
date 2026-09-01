@@ -65,8 +65,8 @@
 
 using namespace std;
 
-const int coz_MAXUSRSPACESIZE = 16711568;
-const int coz_MAXMEM15M = 15662992;
+const int MAXUSRSPACESIZE = 16711568;
+const int MAXMEM15M = 15662992;
 /* Case-conversion direction constants */
 #ifndef _TOUPPER
 #define _TOUPPER 0
@@ -76,7 +76,7 @@ const int coz_MAXMEM15M = 15662992;
 #endif
 
 /* ============================================= */
-/* coz_qusec - IBM i standard error code wrapper */
+/* qusec - IBM i standard error code wrapper */
 /* ============================================= */
 
 typedef struct tag_QUS_EC
@@ -89,14 +89,17 @@ typedef struct tag_QUS_EC
  } qusec_t;
 
 
-class coz_qusec {
+class qusec {
 public:
-    coz_qusec() { init(); }
+    qusec() { init(); }
     void init() {
         memset((char*)&ec, 0x00,
                sizeof(ec) + sizeof(xtra));
         ec.Bytes_Provided =
             (int)(sizeof(ec) + sizeof(xtra));
+    }
+    void clear() {
+        memset((char*)&ec, 0x00,sizeof(ec) + sizeof(xtra));
     }
     void reset() { init(); }
     int isEmpty() {
@@ -126,6 +129,9 @@ public:
     char* msgid() {
         return ec.Exception_Id;
     }
+    bool startsWith(const char* prefix) {
+        return strncmp(ec.Exception_Id, prefix, std::min<int>(7,std::strlen(prefix))) == 0;
+    }
     char* msgdata() {
         int avail = ec.Bytes_Available;
         if (avail > 16) {
@@ -153,48 +159,46 @@ private:
 /* ============================================= */
 /* Helper function prototypes                    */
 /* ============================================= */
-inline void  coz_copyPad(char* t, const char* s, int padLen = 10, char padChar = ' ');
-inline int   coz_copyUntil(char* t, const char* s, int maxLen = 10, const char* stopAt = NULL, bool bTrim = false);
-inline int   coz_toUpper(char* szData, int inLen = -1, int ccsid = 0);
-inline int   coz_nameUpper(char* szData, int inLen = -1);
+inline void  copyPad(char* t, const char* s, int padLen = 10, char padChar = ' ');
+inline int   copyUntil(char* t, const char* s, int maxLen = 10, const char* stopAt = NULL, bool bTrim = false);
+inline int   toUpper(char* szData, int inLen = -1, int ccsid = 0);
+inline int   nameUpper(char* szData, int inLen = -1);
 
-inline void  coz_makeAPIObjName(char* objName, const char* qualObj, const char* dftLib = "*LIBL");
-inline void  coz_resignalMsg(coz_qusec& ec);
+inline void  makeAPIObjName(char* objName, const char* qualObj, const char* dftLib = "*LIBL");
+inline void  resignalMsg(qusec& ec);
 
-inline char* coz_getNextParmIf(int& pC, int& argc, char** argv, int ioFlag = 0);
-inline int*  coz_getNextParmIntIf( int& pC, int& argc, char** argv, int ioFlag = 0);
+inline char* getNextParmIf(int& pC, int& argc, char** argv, int ioFlag = 0);
 
 #define inChar(_v) \
           char *in##_v = \
-          (char*) coz_getNextParmIf(p,argc,argv)
+          (char*) getNextParmIf(p,argc,argv)
 #define inInt(_v)  \
-          int   *in##_v = (int *)coz_getNextParmIf(p, argc, argv)
+          int   *in##_v = (int *) getNextParmIf(p, argc, argv)
 #define inShort(_v) \
-          short *in##_v = (short *)coz_getNextParmIf(p, argc, argv)
+          short *in##_v = (short *) getNextParmIf(p, argc, argv)
 #define inSmallInt(_v) \
           short *in##_v = \
-              (short *)coz_getNextParmIf(p, argc, argv)
+              (short *) getNextParmIf(p, argc, argv)
 #define inBigInt(_v)   \
            long long *in##_v = \
-              (long long *)coz_getNextParmIf(p, argc, argv)
+              (long long *) getNextParmIf(p, argc, argv)
 
 #define outChar(_v) \
            char  *out##_v = \
-           (char *)coz_getNextParmIf(p, argc, argv, 1)
+           (char *) getNextParmIf(p, argc, argv, 1)
 #define outCLOB(_v)  \
      SQLUDF_CLOB*   out##_v = \
-        (SQLUDF_CLOB*)  coz_getNextParmIf(p, argc, argv, 4)
+        (SQLUDF_CLOB*)  getNextParmIf(p, argc, argv, 4)
 #define outInt(_v) \
            int   *out##_v = \
-           (int *)coz_getNextParmIntIf(p, argc, argv)
-
+           (int *) getNextParmIf(p, argc, argv)
 
 #define inIndy(_v) \
     short *indyIn##_v = \
-        (short*) coz_getNextParmIf(p,argc,argv)
+        (short*) getNextParmIf(p,argc,argv)
 #define outIndy(_v) \
     short *indy##_v = \
-        (short*) coz_getNextParmIf(p,argc,argv,2)
+        (short*) getNextParmIf(p,argc,argv,2)
 
 int main(int argc, char *argv[])
 {
@@ -204,7 +208,7 @@ int main(int argc, char *argv[])
    time_t         epochTime;
    struct timeval tv;
    int            rc = 0;
-   coz_qusec      ec;
+   qusec      ec;
 
 
     //////////////////////////////////////////////
@@ -213,7 +217,8 @@ int main(int argc, char *argv[])
     inChar(LIBNAME);      // Library name for OBJNAME
     inChar(OBJNAME);  // Object nmae
     inChar(OBJTYPE);  // Object type (e.g., *FILE, *LIB, *CMD)
-    inChar(AUTH);     // LIst of Authorizations to check
+
+    inChar(AUTH);     // List of Authorizations to check
     inChar(USERNAME); // User Name (default *CURRENT)
     inChar(CALLLVL);  // Call Level to check Dft=*SAME
 
@@ -241,10 +246,10 @@ int main(int argc, char *argv[])
     ////////////////////////////////////////////////////////////
     //  SQL specific parameters
     ////////////////////////////////////////////////////////////
-   char *sqlstate = (char *)coz_getNextParmIf(p, argc, argv);
-   char *funcName = (char *)coz_getNextParmIf(p, argc, argv);
-   char *specificName = (char *)coz_getNextParmIf(p, argc, argv);
-   char *sqlmsgtext = (char *)coz_getNextParmIf(p, argc, argv);
+   char *sqlstate = (char *) getNextParmIf(p, argc, argv);
+   char *funcName = (char *) getNextParmIf(p, argc, argv);
+   char *specificName = (char *) getNextParmIf(p, argc, argv);
+   char *sqlmsgtext = (char *) getNextParmIf(p, argc, argv);
 
 
    char qualObj[21];
@@ -258,39 +263,39 @@ int main(int argc, char *argv[])
    int  nextAuth = 0;
    int  nextIndex = 0;
 
-   coz_nameUpper(inOBJNAME);
-   coz_nameUpper(inLIBNAME);
-   coz_toUpper(inOBJTYPE);
-   coz_toUpper(inAUTH);
-   coz_toUpper(inUSERNAME);
+   nameUpper(inOBJNAME);
+   nameUpper(inLIBNAME);
+   toUpper(inOBJTYPE);
+   toUpper(inAUTH);
+   toUpper(inUSERNAME);
 
-   coz_makeAPIObjName(qualObj, inOBJNAME, inLIBNAME);
+   makeAPIObjName(qualObj, inOBJNAME, inLIBNAME);
    if (*indyInUSERNAME >= 0 && strlen(inUSERNAME) > 0)
    {
-      coz_copyPad(userName, inUSERNAME);
+      copyPad(userName, inUSERNAME);
    }
    else
    {
-      coz_copyPad(userName,"*CURRENT");
+      copyPad(userName,"*CURRENT");
    }
 
    if (*indyInOBJTYPE < 0 || strlen(inOBJTYPE) == 0)
    {
-      coz_copyPad(objType, "*FILE");
+      copyPad(objType, "*FILE");
    }
    else if (inOBJTYPE[0] != '*')
    {
       objType[0] = '*';
-      coz_copyPad(objType+1,  inOBJTYPE);
+      copyPad(objType+1,  inOBJTYPE,9);
    }
    else
    {
-      coz_copyPad(objType,  inOBJTYPE);
+      copyPad(objType,  inOBJTYPE);
    }
 
    if (*indyInCALLLVL >= 0)
    {
-      coz_toUpper(inCALLLVL);
+      toUpper(inCALLLVL);
       if (inCALLLVL[0] == '*') inCALLLVL++; // skip leading '*'
       if (strcmp(inCALLLVL,"PRV")==0) callLevel = 1;
       else if (strcmp(inCALLLVL,"SAME")==0) callLevel = 0;
@@ -312,7 +317,7 @@ int main(int argc, char *argv[])
          }
       }
    }
-   char* token = strtok(inAUTH, " ,:");
+   char* token = strtok(inAUTH, " ,:;");
    while (token != NULL)
    {
       nextIndex = nextAuth;
@@ -322,23 +327,23 @@ int main(int argc, char *argv[])
       authority[nextIndex] = '*';
       if (strcmp(token,"WRITE")==0)
       {
-         coz_copyPad(authority + (1+nextIndex), "ADD");
+         copyPad(authority + (1+nextIndex), "ADD");
       }
       else if (strcmp(token,"UPDATE")==0)
       {
-         coz_copyPad(authority + (1+nextIndex), "UPD");
+         copyPad(authority + (1+nextIndex), "UPD");
       }
       else if (strcmp(token,"DEL")==0 || strcmp(token,"DELETE")==0)
       {
-         coz_copyPad(authority + (1+nextIndex), "DLT");
+         copyPad(authority + (1+nextIndex), "DLT");
       }
       else if (strcmp(token,"EXEC")==0 || strcmp(token,"RUN")==0)
       {
-         coz_copyPad(authority + (1+nextIndex), "EXECUTE");
+         copyPad(authority + (1+nextIndex), "EXECUTE");
       }
       else
       {
-          coz_copyPad(authority + (1+nextIndex), token);
+          copyPad(authority + (1+nextIndex), token);
       }
 
       authCount++;
@@ -348,7 +353,7 @@ int main(int argc, char *argv[])
 
    if (authCount <= 0)
    {
-      coz_copyPad(authority, "*USE");  // Default AUTH=>'*USE'
+      copyPad(authority, "*USE");  // Default AUTH=>'*USE'
    }
    ec.init();
    QSYCUSRA(authorizedFlag, userName, qualObj, objType,
@@ -373,9 +378,9 @@ int main(int argc, char *argv[])
            *outAUTHORIZED = 0;
        }
     }
-    coz_resignalMsg( ec );
+    resignalMsg( ec );
   }
-  else  // Normal/non-error return with authorization flag test
+  else
   {
      *outAUTHORIZED = (authorizedFlag[0] == 'Y' ? 1 : 0);
   }
@@ -385,10 +390,10 @@ int main(int argc, char *argv[])
 // Helper Function implementation (inlined code)
 
 /* ============================================= */
-/* coz_copyPad                                   */
+/* copyPad                                   */
 /* Copy s to t, blank-padding to padLen bytes.   */
 /* ============================================= */
-inline void coz_copyPad(
+inline void copyPad(
     char*       t,
     const char* s,
     int         padLen,
@@ -402,16 +407,16 @@ inline void coz_copyPad(
 }
 
 /* ============================================= */
-/* coz_toUpper / coz_toLower                     */
+/* toUpper / toLower                     */
 /* In-place EBCDIC case conversion.              */
 /* ============================================= */
-inline int coz_toUpper(
+inline int toUpper(
     char* szData,
     int   inLen,
     int   ccsid)
 {
     Qlg_CCSID_ReqCtlBlk_T frcb;
-    coz_qusec ec;
+    qusec ec;
     long len = (inLen <= 0)
                ? (long)strlen(szData) : inLen;
     memset((char*)&frcb, 0x00, sizeof(frcb));
@@ -426,11 +431,11 @@ inline int coz_toUpper(
 }
 
 /* ============================================= */
-/* coz_nameUpper                                 */
+/* nameUpper                                 */
 /* Converts non-quoted IBM i object name to      */
 /* upper case in-place.                          */
 /* ============================================= */
-inline int coz_nameUpper(
+inline int nameUpper(
     char* szData,
     int   inLen)
 {
@@ -438,14 +443,14 @@ inline int coz_nameUpper(
     int len = (inLen <= 0)
                   ? (int)strlen(szData) : inLen;
     if (szData[0] == q) return inLen;
-    return coz_toUpper(szData, len);
+    return toUpper(szData, len);
 }
 
-inline char* coz_getPtrUsrSpace(
+inline char* getPtrUsrSpace(
     const char* p2PartUsrSpaceName)
 {
     void*     pUS = NULL;
-    coz_qusec ec;
+    qusec ec;
     ec.init();
     QUSPTRUS((char*)p2PartUsrSpaceName,
              &pUS, &ec);
@@ -455,11 +460,11 @@ inline char* coz_getPtrUsrSpace(
 
 
 /* ============================================= */
-/* coz_makeAPIObjName                            */
+/* makeAPIObjName                            */
 /* Build 20-char IBM i API object name from      */
 /* qualified name (LIB/OBJ or OBJ).              */
 /* ============================================= */
-inline void coz_makeAPIObjName(
+inline void makeAPIObjName(
     char*       objName,
     const char* qualObj,
     const char* dftLib)
@@ -497,11 +502,11 @@ inline void coz_makeAPIObjName(
 
 
 /* ============================================= */
-/* coz_copyUntil                                 */
+/* copyUntil                                 */
 /* Copy s to t (null-terminated), stopping at   */
 /* maxLen, NUL, or any char in stopAt.           */
 /* ============================================= */
-inline int coz_copyUntil(
+inline int copyUntil(
     char*       t,
     const char* s,
     int         maxLen,
@@ -512,7 +517,7 @@ inline int coz_copyUntil(
     int rtnLen = 0;
     int i      = 0;
     if (t == NULL || s == NULL) return 0;
-#pragma exception_handler(coz_cu_exc,\
+#pragma exception_handler( cu_exc,\
     0, 0,\
     _C2_MH_ESCAPE | _C2_MH_FUNCTION_CHECK,\
     _CTLA_HANDLE)
@@ -540,15 +545,15 @@ inline int coz_copyUntil(
     }
 #pragma disable_handler
     return rtnLen;
-coz_cu_exc:;
+ cu_exc:;
     return rtnLen;
 }
 
 /* ============================================= */
-/* coz_resignalMsg                               */
+/* resignalMsg                               */
 /* Re-send an IBM i API error as a program msg.  */
 /* ============================================= */
-inline void coz_resignalMsg(coz_qusec& ec)
+inline void resignalMsg(qusec& ec)
 {
     char msgfile[21];
     char msgtype[11];
@@ -562,49 +567,48 @@ inline void coz_resignalMsg(coz_qusec& ec)
     memset(msgkey,  ' ', sizeof(msgkey));
     memset(msgfile, ' ', sizeof(msgfile));
     memset(topgmq,  ' ', sizeof(topgmq));
-    topgmq[0] = '*';
-
+    copyPad(topgmq, "*", 10);
     if (ec.isEmpty()) return;
     _CPYBYTES(msgPrefix, ec.msgid(), 2);
     _CPYBYTES(msgType,   ec.msgid() + 2, 1);
     msgType[1]   = 0x00;
     msgPrefix[2] = 0x00;
     if (strcmp(msgPrefix, "CP") == 0)
-        coz_makeAPIObjName(msgfile,
+        makeAPIObjName(msgfile,
                            "QCPFMSG", "*LIBL");
     else if (strcmp(msgPrefix, "RN") == 0)
-        coz_makeAPIObjName(msgfile,
+        makeAPIObjName(msgfile,
                            "QRPGLEMSG","QDEVTOOLS");
     else if (strcmp(msgPrefix, "HT") == 0)
-        coz_makeAPIObjName(msgfile,
+        makeAPIObjName(msgfile,
                            "QHTTPMSG", "QHTTPSVR");
     else if (strcmp(msgPrefix, "CE") == 0)
-        coz_makeAPIObjName(msgfile,
+        makeAPIObjName(msgfile,
                            "QCEEMSG", "QSYS");
     else if (strcmp(msgPrefix, "GU") == 0)
-        coz_makeAPIObjName(msgfile,
+        makeAPIObjName(msgfile,
                            "QGUIMSG",  "QSYS");
     else if (strcmp(msgPrefix, "IW") == 0)
-        coz_makeAPIObjName(msgfile,
+        makeAPIObjName(msgfile,
                            "QIWSMSG",  "QSYS");
     else
-        coz_makeAPIObjName(msgfile,
+        makeAPIObjName(msgfile,
                            "QCPFMSG",  "*LIBL");
     switch (msgType[0]) {
         case 'F': case 'I':
-            coz_copyPad(msgtype, "*INFO", 10);
+            copyPad(msgtype, "*INFO", 10);
             break;
         case 'E':
-            coz_copyPad(msgtype, "*ESCAPE", 10);
+            copyPad(msgtype, "*ESCAPE", 10);
             break;
         case 'D':
-            coz_copyPad(msgtype, "*DIAG", 10);
+            copyPad(msgtype, "*DIAG", 10);
             break;
         case 'C':
-            coz_copyPad(msgtype, "*COMP", 10);
+            copyPad(msgtype, "*COMP", 10);
             break;
         default:
-            coz_copyPad(msgtype, "*INFO", 10);
+            copyPad(msgtype, "*INFO", 10);
             break;
     }
     QMHSNDPM(ec.msgid(), msgfile,
@@ -616,11 +620,11 @@ inline void coz_resignalMsg(coz_qusec& ec)
 
 
 /* ============================================= */
-/* coz_getNextParmIf                             */
+/* getNextParmIf                             */
 /* Advance parameter counter and return argv[n]. */
 /* If ioFlag>0, memset output parm to 0x00.      */
 /* ============================================= */
-inline char* coz_getNextParmIf(
+inline char* getNextParmIf(
     int&  pC,
     int&  argc,
     char** argv,
@@ -635,23 +639,6 @@ inline char* coz_getNextParmIf(
     return pRtn;
 }
 
-inline int* coz_getNextParmIntIf(
-   int& pC,
-   int& argc,
-   char** argv,
-   int    ioFlag)
-{
-   int* pRtn = NULL;
-   if (argc > pC+1)
-   {
-      pRtn = (int*) argv[++pC];
-      if (ioFlag > 0)   // Output? Then clear prior data (if any)
-      {
-        *pRtn = ioFlag;
-      }
-   }
-   return pRtn;
-}
 
 #pragma datamodel(pop)
 

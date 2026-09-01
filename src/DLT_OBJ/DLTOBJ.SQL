@@ -46,7 +46,7 @@ The symbolic library names *LIBL or *CURLIB may be used.',
 
 OBJECT_NAME IS 'The name of the object that is to be deleted.
 The object name may be a full object name or a generic object name,
-or a long SQL name.
+or if the object type is *FILE, then a long SQL name may be specified.
 Note *ALL is blocked by this function and may not be used.',
 
 OBJTYPE  IS 'The standard IBM i Object Type for the object that is
