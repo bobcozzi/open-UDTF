@@ -58,7 +58,7 @@ using namespace std;
 
 
 /* ============================================= */
-/* coz_qusec - IBM i standard error code wrapper */
+/* qusec - IBM i standard error code wrapper */
 /* ============================================= */
 
 typedef struct tag_QUS_EC
@@ -77,7 +77,7 @@ typedef struct tag_QUS_EC
 /* ============================================= */
 
 
-inline char* coz_getNextParmIf(int& pC, int& argc, char** argv, int ioFlag = 0);
+inline char* getNextParmIf(int& pC, int& argc, char** argv, int ioFlag = 0);
 
 #define CLOBDATA(_v) ((SQLUDF_CLOB*) _v)->data
 #define CLOBLEN(_v)  ((SQLUDF_CLOB*) _v)->length
@@ -86,23 +86,23 @@ inline char* coz_getNextParmIf(int& pC, int& argc, char** argv, int ioFlag = 0);
 
 #define inChar(_v) \
           char *in##_v = \
-          (char*) coz_getNextParmIf(p,argc,argv)
+          (char*) getNextParmIf(p,argc,argv)
 
 #define inCLOB(_v)   \
            SQLUDF_CLOB*  in##_v  = \
-          (SQLUDF_CLOB*)   coz_getNextParmIf(p, argc, argv)
+          (SQLUDF_CLOB*)   getNextParmIf(p, argc, argv)
 
 #define outVARBINARY(_v) \
            SQLUDF_VARBINARY* out##_v = \
-          (SQLUDF_VARBINARY*) coz_getNextParmIf(p, argc, argv,2)
+          (SQLUDF_VARBINARY*) getNextParmIf(p, argc, argv,2)
 
 
 #define inIndy(_v) \
     short *indyIn##_v = \
-        (short*) coz_getNextParmIf(p,argc,argv)
+        (short*) getNextParmIf(p,argc,argv)
 #define outIndy(_v) \
     short *indy##_v = \
-        (short*) coz_getNextParmIf(p,argc,argv,2)
+        (short*) getNextParmIf(p,argc,argv,2)
 
 int main(int argc, char *argv[])
 {
@@ -118,7 +118,7 @@ int main(int argc, char *argv[])
    //////////////////////////////////////////////
     //  OUTPUT Column List
     //////////////////////////////////////////////
-    outVARBINARY(HASH);  // 1=Authorized, 0 = Not Authorized
+    outVARBINARY(HASH);  // 64-byte SHA-256 result
 
 
     ////////////////////////////////////////////////////////////
@@ -134,10 +134,10 @@ int main(int argc, char *argv[])
     ////////////////////////////////////////////////////////////
     //  SQL specific parameters
     ////////////////////////////////////////////////////////////
-   char *sqlstate = (char *)coz_getNextParmIf(p, argc, argv);
-   char *funcName = (char *)coz_getNextParmIf(p, argc, argv);
-   char *specificName = (char *)coz_getNextParmIf(p, argc, argv);
-   char *sqlmsgtext = (char *)coz_getNextParmIf(p, argc, argv);
+   char *sqlstate = (char *)getNextParmIf(p, argc, argv);
+   char *sqlfuncName = (char *)getNextParmIf(p, argc, argv);
+   char *specificName = (char *)getNextParmIf(p, argc, argv);
+   char *sqlmsgtext = (char *)getNextParmIf(p, argc, argv);
 
      const int MD5_LEN = 16;
      const int SHA_1_LEN = 20;
@@ -162,7 +162,11 @@ int main(int argc, char *argv[])
      const int SHA3_384 = 11;
      const int SHA3_512 = 12;
 
-     char rtnHash[128];     // Really only need 32 bytes for SHA256
+      // This program supports SHA-512 which is a 64-byte result
+      // however this implementation ony does SHA-256 which is 32-bytes
+
+     char rtnHash[128];     // Double the buffer output size we really need
+
      char cryptoService[10];
      char service = '0';
      char* pInput = NULL;
@@ -209,11 +213,11 @@ int main(int argc, char *argv[])
 
 
 /* ============================================= */
-/* coz_getNextParmIf                             */
+/* getNextParmIf                             */
 /* Advance parameter counter and return argv[n]. */
 /* If ioFlag>0, memset output parm to 0x00.      */
 /* ============================================= */
-inline char* coz_getNextParmIf(
+inline char* getNextParmIf(
     int&  pC,
     int&  argc,
     char** argv,
@@ -227,3 +231,4 @@ inline char* coz_getNextParmIf(
     }
     return pRtn;
 }
+

@@ -1,10 +1,11 @@
+
  -- SPDX-License-Identifier: Apache-2.0
  -- Copyright (c) 1996-2026 by R. Cozzi, Jr.
 
  -- @author BobCozzi
 
 --
--- Source origin: /Users/cozzi/Downloads/projects/open-UDTF/src/CHECK_AUT/CHECKA
+-- Source origin: /Users/cozzi/Downloads/projects/open-UDTF/src/HASH_SHA
 --
 
  CREATE or REPLACE FUNCTION sqlTools.hash_SHA256(
@@ -38,7 +39,7 @@ comment on parameter specific function sqltools.hash_SHA256
 
  CREATE or REPLACE FUNCTION sqlTools.hash_SHA256_UTF8(
                                      input_data CLOB(2G) CCSID 1208
-                                )
+                                                      )
                RETURNS VARBINARY(64)
     LANGUAGE C++
     NO SQL
