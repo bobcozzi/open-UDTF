@@ -13,21 +13,21 @@ All parameters ignore upper/lower case unless the value is enclosed in double qu
 
 ## Source files
 
-| File                            | Target member                 | Purpose              |
-| ------------------------------- | ----------------------------- | -------------------- |
-| `/src/FIELD_LIST/FIELDLIST.CPP` | `SQLTOOLS/QCSRC(FIELDLIST)`   | ILE C++ UDTF program |
-| `/src/FIELD_LIST/FIELDLIST.SQL` | `SQLTOOLS/QUDFSRC(FIELDLIST)` | SQL UDTF definition  |
+| File                             | Target member                  | Purpose              |
+| -------------------------------- | ------------------------------ | -------------------- |
+| `/src/FIELD_LIST/FIELD_LIST.CPP` | `SQLTOOLS/QCSRC(FIELD_LIST)`   | ILE C++ UDTF program |
+| `/src/FIELD_LIST/FIELD_LIST.SQL` | `SQLTOOLS/QUDFSRC(FIELD_LIST)` | SQL UDTF definition  |
 
 ---
 ## Compiling / Build
-After uploading the two source file members (FILELIST.SQL and FILELIST.CPP) to an IBM i Host, you need to compile them using the SQL RUNSQLSTM command and the C++ compiler CRTCPPMOD+CRTPGM, respectively.
+After uploading the two source file members (FIELD_LIST.SQL and FIELD_LIST.CPP) to an IBM i Host, you need to compile them using the SQL RUNSQLSTM command and the C++ compiler CRTCPPMOD+CRTPGM, respectively.
 The C++ requires a 2-step process in order to correctly specify the *PGM's Activation Group, which must be *CALLER for SQL functions.
 Here is an example assuming you uploaded to my recommended SQLTOOLS library:
-### Compiling FIELDLIST.CPP
-`CRTCPPMOD MODULE(SQLTOOLS/FIELDLIST) SRCFILE(SQLTOOLSRC/QCSRC) OUTPUT(*PRINT) DBGVIEW(*SOURCE) SYSIFCOPT(*IFS64IO)`
-`CRTPGM PGM(SQLTOOLS/FIELDLIST) MODULE(SQLTOOLS/FIELDLIST) ACTGRP(*CALLER)`
-### Compiling FIELDLIST.SQL
-`RUNSQLSTM SRCMBR(FIELDLIST) SRCFILE(SQLTOOLS/QSQLSRC)`
+### Compiling FIELD_LIST.CPP
+`CRTCPPMOD MODULE(SQLTOOLS/FIELD_LIST) SRCFILE(SQLTOOLSRC/QCSRC) OUTPUT(*PRINT) DBGVIEW(*SOURCE) SYSIFCOPT(*IFS64IO)`
+`CRTPGM PGM(SQLTOOLS/FIELD_LIST) MODULE(SQLTOOLS/FIELD_LIST) ACTGRP(*CALLER)`
+### Compiling FIELD_LIST.SQL
+`RUNSQLSTM SRCMBR(FIELD_LIST) SRCFILE(SQLTOOLS/QSQLSRC)`
 
 ## Signature
 

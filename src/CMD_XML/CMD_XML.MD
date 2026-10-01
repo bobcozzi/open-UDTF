@@ -17,10 +17,10 @@ At most **one row** is returned per call.
 
 ## Source files
 
-| File | Target member | Purpose |
-|------|---------------|---------|
-| `/src/CMD_XML/CMDXML.CPP` | `SQLTOOLS/QCSRC(CMDXML)` | ILE C++ UDTF program |
-| `/src/CMD_XML/CMDXML.SQL` | `SQLTOOLS/QUDFSRC(CMDXML)` | SQL UDTF definition |
+| File                       | Target member               | Purpose              |
+| -------------------------- | --------------------------- | -------------------- |
+| `/src/CMD_XML/CMD_XML.CPP` | `SQLTOOLS/QCSRC(CMD_XML)`   | ILE C++ UDTF program |
+| `/src/CMD_XML/CMD_XML.SQL` | `SQLTOOLS/QUDFSRC(CMD_XML)` | SQL UDTF definition  |
 
 ---
 
@@ -48,11 +48,11 @@ SELECT CMD_XML
 The library used to locate the `*CMD` object named on `CMD_NAME`.
 The value is case-insensitive.
 
-| Value | Meaning |
-|-------|---------|
-| `*LIBL` *(default)* | Job library list |
-| `*CURLIB` | Job's current library |
-| *library-name* | Specific library |
+| Value               | Meaning               |
+| ------------------- | --------------------- |
+| `*LIBL` *(default)* | Job library list      |
+| `*CURLIB`           | Job's current library |
+| *library-name*      | Specific library      |
 
 ---
 
@@ -66,21 +66,21 @@ The value is case-insensitive.
 
 ## Result columns
 
-| Column | Type | Description |
-|--------|------|-------------|
+| Column    | Type                   | Description                                                            |
+| --------- | ---------------------- | ---------------------------------------------------------------------- |
 | `CMD_XML` | `CLOB(16M) CCSID 1208` | Full command definition XML returned by `QCDRCMDD` (`CMDD0200` format) |
 
 The XML includes the following CL source statement types where present in
 the command definition:
 
-| Statement | Description |
-|-----------|-------------|
-| `CMD` | Command-level attributes (prompt text, validity checker, etc.) |
-| `PARM` | Parameter definitions |
-| `QUAL` | Qualifier definitions (for qualified object name parameters) |
-| `ELEM` | Element definitions (for list parameters) |
-| `DEP` | Dependency rules between parameters |
-| `PMTCTL` | Prompt control rules |
+| Statement | Description                                                    |
+| --------- | -------------------------------------------------------------- |
+| `CMD`     | Command-level attributes (prompt text, validity checker, etc.) |
+| `PARM`    | Parameter definitions                                          |
+| `QUAL`    | Qualifier definitions (for qualified object name parameters)   |
+| `ELEM`    | Element definitions (for list parameters)                      |
+| `DEP`     | Dependency rules between parameters                            |
+| `PMTCTL`  | Prompt control rules                                           |
 
 > **Note:** The UDTF always returns exactly one row.
 
@@ -141,11 +141,11 @@ SELECT x.CMD_XML, h.HELP_XML
 
 ## Error handling
 
-| Condition | Behaviour |
-|-----------|-----------|
+| Condition                            | Behaviour                                       |
+| ------------------------------------ | ----------------------------------------------- |
 | Command not found / `QCDRCMDD` fails | SQLSTATE `02000` (no data); function returns −1 |
-| `QCDRCMDD` returns zero bytes | SQLSTATE `02000`; function returns −1 |
-| Error re-signalled from `QCDRCMDD` | IBM i message is re-signalled to the caller |
+| `QCDRCMDD` returns zero bytes        | SQLSTATE `02000`; function returns −1           |
+| Error re-signalled from `QCDRCMDD`   | IBM i message is re-signalled to the caller     |
 
 ---
 

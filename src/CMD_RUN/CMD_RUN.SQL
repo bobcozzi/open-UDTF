@@ -64,17 +64,11 @@ MODE IS 'Processing mode. Use this parameter to control whether the
 function syntax checks the CL command or runs it. All modes syntax check
 the CL command. The *RUN, *LIMIT (or *RUNLIMIT) modes syntax check
 the CL command and then immediately run the command.
-<ul><li>*RUN - Runs command like Command Entry</li>
-<li>*LIMIT - Runs command as "limited" User</li>
-<li>*CHECK - Syntax Checks for Command Entry use</li>
-<li>*CHECKLIMIT - Syntax Checks Command for "limited" Users</li>
-<li><b>*CLLE</b>  - Syntax Checks for ILE CL Programs alt(ILE)</li>
-<li>*CLP   - Syntax Checks for OPM (CLP) CL Programming </li>
-<li>*CMD   - Syntax Checks a Command Definition statement</li>
-<li>*BND   - Syntax Checks a Binder Source statement</li>
-<li>*PDM   - Syntax Checks for PDM option use</li>
-<li>*PROMPT - (ignored/notsupported)</li>
+<ul><li>*RUN - Run a command like Command Entry</li>
+<li>*LIMIT - Run a command as a "limited User"</li>
+<li>*CHECK - Syntax Check a CL command</li>
+<li>*CHECKLIMIT - Syntax Check a CL command for a "limited User"</li>
 </ul>
 The leading asterisk and upper/lower case is ignored.
-The default is: <i>*CLLE - ILE CL Program Source file syntax checking</i>'
+The default is: <i>*RUN - Run a CL Command</i>'
 );

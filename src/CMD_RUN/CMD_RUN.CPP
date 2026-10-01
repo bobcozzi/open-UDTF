@@ -1392,6 +1392,8 @@ inline char *coz_TEMP_USRSPACE(
              repl, &ec, domain);
     if (ec.Bytes_Returned == 0)
     {
+        RMVMSG("*COMP",NULL);   // Swallow the Ownership has changed msg
+
         /* Enable auto-extend so the space grows   */
         /* automatically when APIs write past the  */
         /* initial size (e.g. QDBRTVFD).           */

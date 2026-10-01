@@ -1,23 +1,37 @@
-CREATE or REPLACE FUNCTION sqltools.CMD_CHECK (
-                                  CMD       VARCHAR(6000),
-                                  CHECKOPT  VARCHAR(14) DEFAULT '*CLLE'
+CREATE or REPLACE FUNCTION sqltools.CMD_EVENTF (
+                                  LIBRARY_NAME VARCHAR(10) DEFAULT '*LIBL',
+                                  EVENTF_NAME  VARCHAR(10) DEFAULT 'EVENTF',
+                                  MBR_NAME     VARCHAR(10)
                                           )
-            RETURNS table (
-                    msgid   varchar(7),
-                    msgtext varchar(512),
-                    cmdstring varchar(6000) -- reserved
-              )
-     LANGUAGE C++
-     NO SQL
-     NOT DETERMINISTIC
-     NOT FENCED
-     FINAL CALL
-     DISALLOW PARALLEL
-     CARDINALITY 3
-     SCRATCHPAD 8400
-     SPECIFIC sqlTools.cmd_check
-     EXTERNAL NAME 'SQLTOOLS/CMDCHECK'
-     PARAMETER STYLE DB2SQL;
+      RETURNS TABLE (
+          EVENT_TIMESTAMP   CHAR(14),
+          SOURCE_ID         INTEGER,
+          SOURCE_FILE       VARCHAR(256),
+          SOURCE_TIMESTAMP  CHAR(14),
+          SOURCE_FLAG       INTEGER,
+
+          STMT_LINE         INTEGER,
+          START_LINE        INTEGER,
+          START_COLUMN      INTEGER,
+          END_LINE          INTEGER,
+          END_COLUMN        INTEGER,
+
+          MESSAGE_ID        CHAR(7),
+          SEVERITY_CHAR     CHAR(1),
+          MSGSEV            INTEGER,
+          MSGTEXT           VARCHAR(2048)
+      )
+      LANGUAGE C++
+      NO SQL
+      NO FINAL CALL
+      NOT DETERMINISTIC
+      NO EXTERNAL ACTION
+      DISALLOW PARALLEL
+      CARDINALITY 20
+      SCRATCHPAD 8400
+      SPECIFIC sqlTools.cmd_eventf
+      EXTERNAL NAME 'SQLTOOLS/CMD_EVENTF'
+      PARAMETER STYLE DB2SQL;
 
 
 LABEL on specific routine sqlTools.cmd_check IS

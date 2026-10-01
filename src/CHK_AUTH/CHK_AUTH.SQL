@@ -5,10 +5,11 @@
 
 -- Check User Authority to an Object
 --
--- Source origin: /Users/cozzi/Downloads/projects/open-UDTF/src/CHECK_AUT/CHECKA
+-- Source origin:
+--      : /Users/cozzi/Downloads/projects/open-UDTF/src/CHK_AUTH/CHK_AUTH
 --
 
-CREATE or REPLACE FUNCTION SQLTOOLS.check_aut(
+CREATE or REPLACE FUNCTION SQLTOOLS.chk_auth(
                                    library_name varchar(10) DEFAULT '*LIBL',
                                    object_NAME  VARCHAR(10),
                                    objtype      VARCHAR(10) default '*FILE',
@@ -24,38 +25,40 @@ CREATE or REPLACE FUNCTION SQLTOOLS.check_aut(
     NO FINAL CALL
     STATEMENT DETERMINISTIC
     NOT FENCED
-    SPECIFIC sqlTools.check_aut
-    EXTERNAL NAME 'SQLTOOLS/CHECKAUT'
+    SPECIFIC sqlTools.chk_auth
+    EXTERNAL NAME 'SQLTOOLS/CHK_AUTH'
     PARAMETER STYLE DB2SQL;
 
 
-LABEL on specific routine sqltools.CHECK_AUT IS
-'Check a user Profile authority to an object';
+LABEL on specific routine sqltools.chk_auth IS
+'${version} Check user Profile authority to object';
 
-COMMENT on SPECIFIC FUNCTION sqltools.CHECK_AUT IS
-'Checks a User Profile authority to the specified Object.
+COMMENT on SPECIFIC FUNCTION sqltools.chk_auth IS
+'${version} Check user Profile authority to an object.
  The authorization is determined if the user has all rights to the object
  specified on the AUTH parameter.
- Return value 1 = Authorized.
- Return value 0 = not authorized.';
+<ul>
+<li> Return value 1 = Authorized.</li>
+<li> Return value 0 = not authorized.</li>
+</ul>';
 
-Comment on Parameter Specific FUNCTION sqltools.CHECK_AUT
+Comment on Parameter Specific FUNCTION sqltools.chk_auth
 (
  LIBRARY_NAME IS 'The name of the library where the object specified on
 the OBJECT_NAME parameter is located.
-The special values *LIBL and *CURLIB are supported. The default is *LIBL',
+The special values *LIBL and *CURLIB are supported. If unspecified *LIBL is
+used. Upper/lower case is ignored.',
 
 OBJECT_NAME is 'The object name being checked for the  User''s authority.
 Upper/lower case is ignored.',
 
 OBJTYPE is 'The IBM i object type of the object specified on the OBJECT_NAME
-  parameter. Upper/lower case is ignored, and the leading asterisk is option.',
-
+parameter. Upper/lower case is ignored, and the leading asterisk is option.',
 
 AUTH is 'A list of one or more authorities being checked for. Up to 10
- authorities may be specified (listed below). Each authority must be
-seperated by one or more blanks or commas. Upper/lower case is ignored
-and the leading asterisk is optional. The valid authorities are:<ul>
+authorities may be specified (listed below). Each authority must be
+seperated by one or more blanks or commas. Upper/lower case and the
+leading asterisk are ignored. The valid authority choices are:<ul>
  <li><u>*USE</u> - *OBJOPR *READ and *EXECUTE authority</li>
  <li>*ALL - All authority</li>
  <li>*CHANGE -  *OBJOPR *OBJREF *OBJALTER *READ *ADD *DLT *UPD</li>
@@ -70,10 +73,10 @@ and the leading asterisk is optional. The valid authorities are:<ul>
  <li>*ADD or *WRITE - Add authority</li>
  <li>*UPD or *UPDATE - Update authority</li>
  <li>*DLT or *DELETE - Delete authority</li>
- <li>*EXECUTE or *RUN - Run a program or find an object in a library</li>
+ <li>*EXECUTE or *RUN - Run a program</li>
 </ul>',
 
-USER_NAME is 'The user profile whose authority to the object is checked.'
-
+USER_NAME is 'The user profile whose authority to the object is checked.
+Upper/lower case is ignored.'
 );
 

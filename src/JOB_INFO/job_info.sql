@@ -53,9 +53,12 @@ LABEL on specific routine sqltools.job_info IS
 '${version} Job Status Info';
 
 comment on specific function sqltools.job_info IS
-'${version} Job Status Info';
+'${version} Job Status Info. This is used to return the current job status
+When the job status is MSGW (message wait) then the MSGKEY and MSGQ columns
+may be used to identify the message and message queue where a message-reply
+should be sent using interfaces such as the SNDRPY CL command.';
 
 comment on parameter specific function sqltools.job_info
 ( JOB_NAME is 'The fully qualified 3-part job name whose job
-attributes are returned.');
-
+information is to be returned. If unspecified, the default ''*'' is used
+and causes the information for the job running this UDTF to be returned.');

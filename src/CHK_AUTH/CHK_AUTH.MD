@@ -10,10 +10,10 @@ Checks whether a user profile has the specified authority to an IBM i object (su
 
 ## Source files
 
-| File | Target member | Purpose |
-|------|---------------|---------|
-| `/src/CHECK_AUT/checkaut.cpp` | `SQLTOOLS/QCSRC(CHECKAUT)` | ILE C++ function |
-| `/src/CHECK_AUT/checkaut.sql` | `SQLTOOLS/QUDFSRC(CHECKAUT)` | SQL function definition |
+| File                         | Target member                | Purpose                 |
+| ---------------------------- | ---------------------------- | ----------------------- |
+| `/src/CHK_AUTH/CHK_AUTH.CPP` | `SQLTOOLS/QCSRC(CHK_AUTH)`   | ILE C++ function        |
+| `/src/CHK_AUTH/CHK_AUTH.SQL` | `SQLTOOLS/QUDFSRC(CHK_AUTH)` | SQL function definition |
 
 ---
 
@@ -46,11 +46,11 @@ The name of the library where the object specified on `OBJECT_NAME` is located.
 The special values `*LIBL` and `*CURLIB` are supported. The default is `*LIBL`.
 Upper/lower case is ignored.
 
-| Value | Meaning |
-|-------|---------|
-| `*LIBL` *(default)* | Job library list |
-| `*CURLIB` | Job's current library |
-| *library-name* | Specific library |
+| Value               | Meaning               |
+| ------------------- | --------------------- |
+| `*LIBL` *(default)* | Job library list      |
+| `*CURLIB`           | Job's current library |
+| *library-name*      | Specific library      |
 
 ---
 

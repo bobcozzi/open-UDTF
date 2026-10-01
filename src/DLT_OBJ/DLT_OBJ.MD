@@ -14,10 +14,10 @@ By default, it protects system libraries from accidental deletion.
 
 ## Source files
 
-| File                      | Target member              | Purpose                           |
-| ------------------------- | -------------------------- | --------------------------------- |
-| `/src/DLT_OBJ/DLTOBJ.CPP` | `SQLTOOLSRC/QCSRC(DLTOBJ)` | ILE C++ external function program |
-| `/src/DLT_OBJ/DLTOBJ.SQL` | `SQLTOOLS/QUDFSRC(DLTOBJ)` | SQL function definition           |
+| File                       | Target member               | Purpose                           |
+| -------------------------- | --------------------------- | --------------------------------- |
+| `/src/DLT_OBJ/DLT_OBJ.CPP` | `SQLTOOLSRC/QCSRC(DLT_OBJ)` | ILE C++ external function program |
+| `/src/DLT_OBJ/DLT_OBJ.SQL` | `SQLTOOLS/QUDFSRC(DLT_OBJ)` | SQL function definition           |
 
 ---
 

@@ -1469,7 +1469,7 @@ inline char *coz_TEMP_USRSPACE(
              repl, &ec, domain);
     if (ec.Bytes_Returned == 0)
     {
-        rmvMsg("*COMP",NULL);  // Remove the previous "Owner Changed for *USRSPC" msg from the joblog
+        RMVMSG("*COMP",NULL);   // Swallow the Ownership has changed msg
 
         /* Enable auto-extend so the space grows   */
         /* automatically when APIs write past the  */

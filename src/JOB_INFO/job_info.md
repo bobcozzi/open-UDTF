@@ -14,8 +14,8 @@ It is useful for operational checks such as identifying the active job state, me
 
 | File                           | Target member                  | Purpose                                       |
 | ------------------------------ | ------------------------------ | --------------------------------------------- |
-| `/src/JOB_INFO/job_info.rpgle` | `SQLTOOLS/QRPGLESRC(JOB_INFO)` | External RPG IV program that calls `QUSRJOBI` |
-| `/src/JOB_INFO/job_info.sql`   | `SQLTOOLS/QSQLSRC(JOB_INFO)`   | SQL function declaration for the UDTF         |
+| `/src/JOB_INFO/JOB_INFO.RPGLE` | `SQLTOOLS/QRPGLESRC(JOB_INFO)` | External RPG IV program that calls `QUSRJOBI` |
+| `/src/JOB_INFO/JOB_INFO.SQL`   | `SQLTOOLS/QSQLSRC(JOB_INFO)`   | SQL function declaration for the UDTF         |
 
 ---
 

@@ -15,10 +15,10 @@ At most **one row** is returned per call.  The XML content mirrors what the
 
 ## Source files
 
-| File                        | Target member               | Purpose              |
-| --------------------------- | --------------------------- | -------------------- |
-| `/src/CMD_HELP/CMDHELP.CPP` | `SQLTOOLS/QCSRC(CMDHELP)`   | ILE C++ UDTF program |
-| `/src/CMD_HELP/CMDHELP.SQL` | `SQLTOOLS/QUDFSRC(CMDHELP)` | SQL UDTF definition  |
+| File                         | Target member                | Purpose              |
+| ---------------------------- | ---------------------------- | -------------------- |
+| `/src/CMD_HELP/CMD_HELP.CPP` | `SQLTOOLS/QCSRC(CMD_HELP)`   | ILE C++ UDTF program |
+| `/src/CMD_HELP/CMD_HELP.SQL` | `SQLTOOLS/QUDFSRC(CMD_HELP)` | SQL UDTF definition  |
 
 ---
 

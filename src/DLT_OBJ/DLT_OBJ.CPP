@@ -4,14 +4,13 @@
 // @author BobCozzi
 
 ////////////////////////////////////////////////////////////////////////
-// IBM i CL Command Processor for SQL
-// This is an SQL UDTF External Program
-// It uses the QCAPCMD API to run or syntax check CL commands
-// in various IBM i environments (OPM, ILE, CL Program, Command Line, etc.)
+// IBM i SQL Function: DELETE_OBJECT / DLTOBJ
+// This is an SQL UDF External Program
+// It uses the QLIDLTO API to delete the object
 ////////////////////////////////////////////////////////////////////////
 // This is part of the collection of open source SQL UDTFs that are
 // primarily built for the VS CODE and CODE for IBM i IDE, however
-// they can certainly be feely used in products such as:
+// they can be feely used in other environments that permit running SQL:
 //  - IBM ACS RUNSQL Scripts
 //  - SQL iQuery
 //  Available on github at:  https://github.com/bobcozzi/open-UDTF
@@ -405,10 +404,16 @@ int main(int argc, char *argv[])
              startsWith(LIBNAME, "SQL") ||
              startsWith(LIBNAME, "Q")) && !startsWith(LIBNAME,"QTEMP"))
         {
-            Qp0zLprintf("DLTOBJ: %s in %s type %s is in a protected library. Delete request cancelled.",
+            Qp0zLprintf("DLTOBJ: %s in %s type %s is in a protected library. Delete request cancelled.\n",
                                 inOBJNAME, inLIBNAME, inOBJTYPE);
             return 0;
         }
+        if (startsWith(OBJNAME, "*ALL"))
+        {
+            Qp0zLprintf("DLTOBJ: OBJECT_NAME=>*ALL is not permitted by this routine. The delete request is cancelled.\n");
+            return 0;
+        }
+
         char qualObjName[21];
         makeAPIObjName(qualObjName, OBJNAME, LIBNAME);
         *outSUCCESS = DLTOBJ(qualObjName, OBJTYPE, ASPNAME, RMVMSG);

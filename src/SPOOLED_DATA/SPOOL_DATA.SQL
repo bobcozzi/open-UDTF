@@ -1,13 +1,14 @@
--- SPOOLED_DATA UDTF
--- SPDX-License-Identifier: Apache-2.0
--- Copyright (c) 1996-2026 by R. Cozzi, Jr.
--- @author BobCozzi
 
--- Standalone version of READSPLF. Reads a SPOOLED
--- file's content directly and returns it as rows.
--- This function has zero dependency on the SQLTOOLS
--- *SRVPGM - it is fully self-contained.
--- Module: SQLTOOLS/ST_SPOOLDATA
+ -- SPDX-License-Identifier: Apache-2.0
+ -- Copyright (c) 1996-2026 by R. Cozzi, Jr.
+ -- @author BobCozzi
+
+-- Read SPOOLED File Data directly (no CPYSPLF output file)
+--
+-- Source origin:
+--     /Users/cozzi/Downloads/projects/open-UDTF/src/SPOOLED_DATA/SPOOL_DATA
+
+-- SPOOLED_DATA UDTF
 
 CREATE OR REPLACE FUNCTION sqltools.SPOOLED_DATA(
     SPLFNAME  VARCHAR(10)  DEFAULT '*LAST',
@@ -47,9 +48,8 @@ CREATE OR REPLACE FUNCTION sqltools.SPOOLED_DATA(
       ORGSYSNAME       VARCHAR(8),
 
       JOB              VARCHAR(28),
-      INT_SPLID        BINARY(16),
-      INT_JOBID        BINARY(16),
-
+   -- Same as SPOOLED_DATA but with "FOR BIT DATA"
+   -- this allows it to pass thru unmodified if needed.
       SPOOLED_DATA_BIN VARCHAR(2048)
                            FOR BIT DATA
    )
@@ -61,15 +61,15 @@ CREATE OR REPLACE FUNCTION sqltools.SPOOLED_DATA(
     NOT FENCED
     DISALLOW PARALLEL
     SCRATCHPAD 6000
-    SPECIFIC sqltools.SPOOL_DATA
-    EXTERNAL NAME 'SQLTOOLS/SPOOLDATA'
+    SPECIFIC sqltools.SPOOLED_DATA
+    EXTERNAL NAME 'SQLTOOLS/SPOOL_DATA'
     PARAMETER STYLE DB2SQL;
 
 
-LABEL ON SPECIFIC ROUTINE sqltools.SPOOL_DATA
+LABEL ON SPECIFIC ROUTINE sqltools.SPOOLED_DATA
     IS 'Read SPOOLED file data (standalone)';
 
-COMMENT ON SPECIFIC FUNCTION sqltools.SPOOL_DATA
+COMMENT ON SPECIFIC FUNCTION sqltools.SPOOLED_DATA
   IS 'Read SPOOLED file data as text.
  Standalone UDTF - no SQLTOOLS *SRVPGM required.
  The *SCS SPOOLED file is read directly and each
@@ -77,7 +77,7 @@ COMMENT ON SPECIFIC FUNCTION sqltools.SPOOL_DATA
  by default to mimic the DSPSPLF viewer window.';
 
 COMMENT ON PARAMETER SPECIFIC FUNCTION
-    sqltools.SPOOL_DATA
+    sqltools.SPOOLED_DATA
 (
 SPLFNAME IS 'SPOOLED File Name. Specify any valid
  SPOOLED file name (case is ignored). Used with
@@ -145,3 +145,7 @@ SPOOLED_FILE_NUMBER IS 'Alternate SPLNBR.
  SYSTOOLS.SPOOLED_FILE_DATA parameter names.
  When supplied, overrides SPLNBR.'
 );
+
+GRANT EXECUTE
+ON SPECIFIC FUNCTION SQLTOOLS.SPOOLED_DATA
+TO PUBLIC ;
