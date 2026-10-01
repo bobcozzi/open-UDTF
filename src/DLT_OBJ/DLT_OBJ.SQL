@@ -41,8 +41,7 @@ library_name is 'The library name containing the Object
 to be deleted. If no library name is specified, then *LIBL is used.
 This parameter may be specified using either the standard "short"
 system object name (up to 10 characters) or it may be a long SQL name.
-The symbolic library names *LIBL or *CURLIB may be specified.';
-
+The symbolic library names *LIBL or *CURLIB may be specified.',
 
 OBJECT_NAME IS 'The name of the object that is to be deleted.
 The object name may be a full object name or a generic object name,
@@ -84,7 +83,7 @@ The valid choices are:<ul><li><i>*YES</i> - Convert to upper case</li>
 <li>*NO - Do not convert to upper case</li></ul>
 <p>Note: Object names encloded in double quotes (e.g., "Old.file")
 are never capitalized by this function regardless of the value of
-this parameter.</p>'
+this parameter.</p>
 <p>The leading asterisk and upper/lower case is ignored.</p>'
 );
 

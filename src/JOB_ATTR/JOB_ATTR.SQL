@@ -6,9 +6,9 @@
 -- Retrieve Job information (status, msgq, outq)
 --
 -- Source origin:
---        /Users/cozzi/Downloads/projects/open-UDTF/src/JOB_INFO/JOB_INFO
+--        /Users/cozzi/Downloads/projects/open-UDTF/src/JOB_ATTR/JOB_ATTR
 
-CREATE or REPLACE FUNCTION SQLTOOLS.JOB_INFO(
+CREATE or REPLACE FUNCTION SQLTOOLS.JOB_ATTR(
                JOB_NAME     varchar(28) default '*'
                                             )
        RETURNS table (
@@ -45,20 +45,20 @@ CREATE or REPLACE FUNCTION SQLTOOLS.JOB_INFO(
   SCRATCHPAD 128
   DISALLOW PARALLEL
   CARDINALITY 1
-  EXTERNAL NAME 'SQLTOOLS/JOB_INFO'
-  SPECIFIC sqlTools.job_info
+  EXTERNAL NAME 'SQLTOOLS/JOB_ATTR'
+  SPECIFIC sqlTools.JOB_ATTR
   PARAMETER STYLE DB2SQL;
 
-LABEL on specific routine sqltools.job_info IS
+LABEL on specific routine sqltools.JOB_ATTR IS
 '${version} Job Status Info';
 
-comment on specific function sqltools.job_info IS
+comment on specific function sqltools.JOB_ATTR IS
 '${version} Job Status Info. This is used to return the current job status
 When the job status is MSGW (message wait) then the MSGKEY and MSGQ columns
 may be used to identify the message and message queue where a message-reply
 should be sent using interfaces such as the SNDRPY CL command.';
 
-comment on parameter specific function sqltools.job_info
+comment on parameter specific function sqltools.JOB_ATTR
 ( JOB_NAME is 'The fully qualified 3-part job name whose job
 information is to be returned. If unspecified, the default ''*'' is used
 and causes the information for the job running this UDTF to be returned.');

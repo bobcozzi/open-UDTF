@@ -17,15 +17,15 @@ CREATE or REPLACE FUNCTION sqltools.CMD_CHECK (
      CARDINALITY 3
      SCRATCHPAD 8400
      SPECIFIC sqlTools.cmd_check
-     EXTERNAL NAME 'SQLTOOLS/CMDCHECK'
+     EXTERNAL NAME 'SQLTOOLS/CMD_CHECK'
      PARAMETER STYLE DB2SQL;
 
 
 LABEL on specific routine sqlTools.cmd_check IS
-'${version} - CL Command Syntax Checker (QCAPCMD Wrapper)';
+'${version} - CL Command Syntax Checker';
 
 comment on specific FUNCTION sqlTools.cmd_check is
-'${version} - CL Command Syntax Checker (QCAPCMD Wrapper)';
+'${version} - CL Command Syntax Checker (QCAPCMD Wrapper)
 This function syntax checks the specified CL command and returns any
 syntax error messages as its resultset. It is similar to using the
 CMD_RUN UDTF with the MODE parameter set to MODE=>''*CHECK''.';
@@ -50,6 +50,6 @@ CLLE source members. The valid choices are:
  <li>*CMD - 6. Command Definition syntax check (PARM, QUAL, ELEM, etc.)</li>
  <li>*BINDER or *BND - 7. Binder Source syntax check</li>
  <li>*PDM - 8. PDM User Defintion Option Command syntax check</li>
- </li>
 </ul>'
 );
+

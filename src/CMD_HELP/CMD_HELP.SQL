@@ -27,7 +27,7 @@
      CARDINALITY 1
      SCRATCHPAD 256
      SPECIFIC sqlTools.cmd_help
-     EXTERNAL NAME 'SQLTOOLS/CMDHELP'
+     EXTERNAL NAME 'SQLTOOLS/CMD_HELP'
      PARAMETER STYLE DB2SQL;
 
 LABEL on specific routine sqltools.cmd_help  IS
@@ -50,7 +50,7 @@ CMD_NAME IS 'The name of the CL command whose helptext is to be retrieved.
 Upper/lower case is ignored.',
 
 HELPID IS 'A comma separated list of help ID whose helptext is to be
-returned. This is normally a list of the command''s parameter keywords.'
+returned. This is normally a list of the command''s parameter keywords.
 The default, *CMD is used to retreive the Command''s help text.
 When I parameter (keyword) name is specified, the help panel for that
 specific parameter is returned.'

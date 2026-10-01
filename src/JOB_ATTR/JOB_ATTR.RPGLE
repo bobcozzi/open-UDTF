@@ -7,7 +7,7 @@
   // @author BobCozzi
 
     ////////////////////////////////////////////////////////////////////////
-    // IBM i Retrieve Job Info
+    // IBM i Retrieve Job Attributes UDTF
     // This is an SQL UDTF External Program
     // It uses the QUSRJOBI API to retreive Job Information
     // This information is currently not available via QSYS2 SQL functions
@@ -136,7 +136,7 @@
      end-ds;
 
      dcl-proc main ;
-     dcl-pi main EXTPGM('JOB_INFO'); // Add SQL UDTF Input/Output Parameters and indicators
+     dcl-pi main EXTPGM('JOB_ATTR'); // Add SQL UDTF Input/Output Parameters and indicators
 
                // Input parameters
           inJobID  varchar(28) const;
@@ -234,7 +234,7 @@
           QUSRJOBI( buffer200 : %size(buffer200) : 'JOBI0200' :
                          scratchPad.jobID : intJOBID : ec);
           if (ec.bytes_returned > 0);
-               snd-msg 'JOB_INFO returned ' + ec.msgid;
+               snd-msg 'JOB_ATTR returned ' + ec.msgid;
                outSQLSTATE = '38701';
                return;
           endif;
@@ -242,7 +242,7 @@
           QUSRJOBI( buffer300 : %size(buffer300) : 'JOBI0300' :
                          scratchPad.jobID : intJOBID : ec);
           if (ec.bytes_returned > 0);
-               snd-msg 'JOB_INFO returned ' + ec.msgid;
+               snd-msg 'JOB_ATTR returned ' + ec.msgid;
                outSQLSTATE = '38701';
                return;
           endif;

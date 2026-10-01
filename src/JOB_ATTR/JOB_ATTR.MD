@@ -1,12 +1,12 @@
-# JOB_INFO — Job Status Information UDTF
+# JOB_ATTR — Job Status Information UDTF
 
 Returns one row of job status information for a target IBM i job. This UDTF calls the IBM-supplied `QUSRJOBI` API to return job attributes that are not normally exposed through the standard `QSYS2` catalog views.
 
 It is useful for operational checks such as identifying the active job state, message queue, output queue, and printer device associated with a job. In the CLPROMPTER extension for VSCODE, we use this to determine if the host SQL Job is in MSGW status, its associated message queue, and the message key needed to send a reply.
 
 **Schema:** `SQLTOOLS`
-**Specific name:** `SQLTOOLS.JOB_INFO`
-**External program:** `SQLTOOLS/JOB_INFO`
+**Specific name:** `SQLTOOLS.JOB_ATTR`
+**External program:** `SQLTOOLS/JOB_ATTR`
 
 ---
 
@@ -14,8 +14,8 @@ It is useful for operational checks such as identifying the active job state, me
 
 | File                           | Target member                  | Purpose                                       |
 | ------------------------------ | ------------------------------ | --------------------------------------------- |
-| `/src/JOB_INFO/JOB_INFO.RPGLE` | `SQLTOOLS/QRPGLESRC(JOB_INFO)` | External RPG IV program that calls `QUSRJOBI` |
-| `/src/JOB_INFO/JOB_INFO.SQL`   | `SQLTOOLS/QSQLSRC(JOB_INFO)`   | SQL function declaration for the UDTF         |
+| `/src/JOB_ATTR/JOB_ATTR.RPGLE` | `SQLTOOLS/QRPGLESRC(JOB_ATTR)` | External RPG IV program that calls `QUSRJOBI` |
+| `/src/JOB_ATTR/JOB_ATTR.SQL`   | `SQLTOOLS/QSQLSRC(JOB_ATTR)`   | SQL function declaration for the UDTF         |
 
 ---
 
@@ -28,9 +28,9 @@ The project uses the standard RPG compile flow, typically with `CRTBNDRPG` or `C
 ### Example build flow
 
 ```cl
-CRTBNDRPG PGM(SQLTOOLS/JOB_INFO) SRCFILE(SQLTOOLS/QRPGLESRC) SRCMBR(JOB_INFO) DBGVIEW(*SOURCE)
+CRTBNDRPG PGM(SQLTOOLS/JOB_ATTR) SRCFILE(SQLTOOLS/QRPGLESRC) SRCMBR(JOB_ATTR) DBGVIEW(*SOURCE)
 
-RUNSQLSTM SRCFILE(SQLTOOLS/QSQLSRC) SRCMBR(JOB_INFO)
+RUNSQLSTM SRCFILE(SQLTOOLS/QSQLSRC) SRCMBR(JOB_ATTR)
 ```
 > The DFTACTGRP and ACTGRP keywords are also embedded in the source CTL-OPT (header) keyword so they are unnecessary on the CRTBNDRPG command itself.
 > The exact library and source-file names may vary based on where you store the members, but the build pattern is the same.
@@ -42,7 +42,7 @@ RUNSQLSTM SRCFILE(SQLTOOLS/QSQLSRC) SRCMBR(JOB_INFO)
 ```sql
 SELECT *
   FROM TABLE(
-    SQLTOOLS.JOB_INFO(
+    SQLTOOLS.JOB_ATTR(
       JOB_NAME => '*'
     )
   ) AS T;
@@ -121,7 +121,7 @@ The function returns a single row of job metadata.
 
 ```sql
 SELECT *
-  FROM TABLE(SQLTOOLS.JOB_INFO('*')) AS J;
+  FROM TABLE(SQLTOOLS.JOB_ATTR('*')) AS J;
 ```
 
 ### Specific job
@@ -130,7 +130,7 @@ SELECT *
 SELECT JOB_NAME, JOB_USER, JOB_NBR, JOB_STATUS, ACTIVE_JOB_STATUS,
        MSGQ_NAME, MSGQ_LIB, OUTQ_NAME, OUTQ_LIB
   FROM TABLE(
-    SQLTOOLS.JOB_INFO('123456/BOBCOZZI/QZDASOINIT')
+    SQLTOOLS.JOB_ATTR('123456/BOBCOZZI/QZDASOINIT')
   ) AS J;
 ```
 
@@ -139,7 +139,7 @@ SELECT JOB_NAME, JOB_USER, JOB_NBR, JOB_STATUS, ACTIVE_JOB_STATUS,
 ```sql
 SELECT JOB, JOB_NAME, JOB_STATUS, SUBSYSTEM_NAME, LAST_FUNCTION,
        OUTQ_NAME, OUTQ_LIB, PRTDEV_NAME
-  FROM TABLE(SQLTOOLS.JOB_INFO('*')) AS J;
+  FROM TABLE(SQLTOOLS.JOB_ATTR('*')) AS J;
 ```
 
 ---
