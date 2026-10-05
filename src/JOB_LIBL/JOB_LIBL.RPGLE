@@ -24,10 +24,17 @@ ctl-opt   main(main) OPTION(*SRCSTMT);
           ctl-opt DFTACTGRP(*NO) ACTGRP(*CALLER);
       /endif
 
+          // Use the PSDS to obtain "this" Program's name
      dcl-ds psds psds qualified;
        pgmname *proc;
      end-ds;
 
+          // SQL UDF Stuff
+     dcl-c SQL_FETCH 0;
+     dcl-c SQL_OPEN -1;
+     dcl-c SQL_CLOSE 1;
+
+          // Standardized API exception/error struct for APIs
      dcl-ds QUSEC_t Qualified Template;
           bytes_Provided  int(10) inz(%size(QUSEC_T));
           bytes_Available INT(10);
@@ -39,13 +46,13 @@ ctl-opt   main(main) OPTION(*SRCSTMT);
           reserved        char(1);
           msgdata         char(64);
      end-ds;
-
+          // 3-Part job struct for API calls
      dcl-ds JOBID_T Qualified Template;
           JOB_NAME char(10);
           JOB_USER char(10);
           JOB_NBR char(6);
      end-ds;
-
+          // Retrieve Job Attributes
      dcl-pr QUSRJOBI EXTPGM('QUSRJOBI');
           rtnJobInfo char(6000) OPTIONS(*VARSIZE);
           rtnJobInfoSize int(10) Const;
@@ -54,27 +61,49 @@ ctl-opt   main(main) OPTION(*SRCSTMT);
           InternalJobID char(16) Const;
           apiError  LikeDS(QUSEC_T) OPTIONS(*VARSIZE);
      end-pr QUSRJOBI;
-
+          // Get pointer to existing User Space
      dcl-pr QUSPTRUS  extPgm('QUSPTRUS');
        userSpace char(20) Const;
        pRtnPtrVar pointer;
        api_error  LikeDS(QUSEC_T) OPTIONS(*VARSIZE:*NOPASS);
      end-pr;
-
-     dcl-pr cvthc  extProc('cvthc');
-          szHexVal  char(65534) OPTIONS(*VARSIZE);
-          szCharVal char(32766) OPTIONS(*VARSIZE)  CONST;
-          nHexLen int(10) Value;
+          // Delete User Space
+     dcl-pr QusDltUS  extPgm('QUSDLTUS');
+        userSpace char(20) Const;
+        api_error  LikeDS(QUSEC_T) OPTIONS(*VARSIZE:*NOPASS);
+     end-pr;
+          // Delete Object (use when RMVMSG is desired)
+     dcl-pr QLIDLTO  extPgm('QLIDLTO');
+         objectName char(20) Const;
+         objType    char(10) Const;
+         ASP_NAME   char(10) Const;  // Use '*'
+         rmvMsg     char(1)  Const;  // '1'=remove "User Space deleted" msg
+         api_error  LikeDS(QUSEC_T) OPTIONS(*VARSIZE:*NOPASS);
      end-pr;
 
+          // Convert to hex from char MI inst.
+     dcl-pr cvthc  extProc('cvthc');
+          outHexVal  char(65534) OPTIONS(*VARSIZE);
+          inCharVal char(32766) OPTIONS(*VARSIZE)  CONST;
+          hexLen int(10) Value;
+     end-pr;
+          // Convert to char from hex MI inst.
+     dcl-pr cvtch  extProc('cvtch');
+          outCharVal char(32766) OPTIONS(*VARSIZE);
+          inHexVal  char(65534) OPTIONS(*VARSIZE) CONST;
+          hexLen int(10) Value;
+     end-pr;
+
+          // Library List Library Info returned by QLIRLIBD API
      dcl-ds library_Info qualified inz;
           lib_type       CHAR(5);
           iASP_Nbr       INT(10);
           iASP_Name      VARCHAR(10);
           iASP_Group     VARCHAR(10);
           Lib_Text       VARCHAR(50);
+          OBJ_COUNT      INT(10);
      end-ds;
-
+          // Library List info return from QUSRJOBI
      dcl-ds Qwc_JOBI0750_T  Qualified Inz TEMPLATE;
           Bytes_Return INT(10);
           Bytes_Avail INT(10);
@@ -95,9 +124,10 @@ ctl-opt   main(main) OPTION(*SRCSTMT);
           Offset_User_Libs INT(10);
           Number_User_Libs INT(10);
           Lng_One_Lib_Entry INT(10);
+          // Qwc_Lib_List2_T dim(n) - A list of library info entries
      end-ds;  // Qwc_JOBI0750_T
 
-     // Converted from: <QSYSINC/H/QUSRJOBI>
+          // Struct of each library returned by format JOBI0750
      dcl-ds Qwc_Lib_List2_T  Qualified Inz TEMPLATE;
           Lib_Name  CHAR(10);
           Lib_Text  CHAR(50);
@@ -105,12 +135,15 @@ ctl-opt   main(main) OPTION(*SRCSTMT);
           iASP_Name CHAR(10);
      end-ds;  // Qwc_Lib_List2_T
 
+          // SQL UDTF Scratch pad passed to this program
+          // Note all Scratch pads have their defined length
+          // as the first entry (first 4-byte int)
      dcl-ds scratch_t Qualified Template;
-       length int(10);
-       eof    int(10);
-       jobID  likeds(jobid_t);
-       LIBL_US CHAR(20);
-       counter  int(10);  // Counter of rows returned so far
+       length int(10);  // Length of this scratch pad
+       eof    int(10);  // 1=EOF in list has been reached
+       jobID  likeds(jobid_t);  // Saved 3-part job ID
+       LIBL_US CHAR(20);  // Name of the User space for library list info
+       COUNTER  int(10);  // Counter of rows returned so far
        LIBLSIZE int(10);  // Number of Libraries on LIBL
        SYSLIBS  int(10);  // Number of System Portion Libraries
        PRDLIBS  int(10);  // Number of Product Libraries (0, 1, or 2)
@@ -132,10 +165,10 @@ ctl-opt   main(main) OPTION(*SRCSTMT);
 
                // Input parameters
           inJobID   VARCHAR(28) const;
-          inPORTION VARCHAR(10) const;
+          inPORTION VARCHAR(10) const;  // SYS, USR, CUR, PROD, etc.
 
                // Output Columns
-          seqNbr int(10);
+          SEQNBR  int(10);
           LIBNAME VARCHAR(10);
           PORTION VARCHAR(10);
           LIBTYPE VARCHAR(5);  // *PROD or *TEST
@@ -143,6 +176,7 @@ ctl-opt   main(main) OPTION(*SRCSTMT);
           iASP_Nbr int(5);
           iASP_Name VARCHAR(10);
           iASP_Group VARCHAR(10);
+          OBJ_COUNT INT(10);
           PORTION_AS_TYPE VARCHAR(10);  // Dup of PORTION returned as "TYPE"
           job VARCHAR(28);
 
@@ -160,6 +194,7 @@ ctl-opt   main(main) OPTION(*SRCSTMT);
           indy_iASP_Nbr int(5);
           indy_iASP_Name int(5);
           indy_iASP_Group int(5);
+          indy_OBJ_COUNT  int(5);
           indy_PORTION_AS_TYPE int(5);
           indy_job int(5);
 
@@ -174,6 +209,8 @@ ctl-opt   main(main) OPTION(*SRCSTMT);
 
      dcl-ds jobID LikeDS(jobid_T);
      dcl-s  intJOBID char(16) inz;
+     dcl-s  LIBL_SECTION char(10) inz('*');
+     dcl-s  scratchPad_Len int(10);
      dcl-ds ec likeDS(qusec_t) inz(*LIKEDS);
      dcl-ds libl LIKEDS(Qwc_JOBI0750_T) based(pLibl);
      dcl-s  pSysLibs pointer inz(*NULL);
@@ -182,11 +219,11 @@ ctl-opt   main(main) OPTION(*SRCSTMT);
      dcl-s  pUserLibs pointer inz(*NULL);
      dcl-ds lible likeDS(Qwc_Lib_List2_T) based(pLiblE);
 
-     IF (inSQLOpCode = -1);  // Open?
-          scratchPad.eof = 0;
-          scratchPad.LIBLSIZE = 0;
-          scratchPad.counter  = 0;
-          clear scratchPad.JobID;
+     IF (inSQLOpCode = SQL_OPEN);  // Open?
+          scratchPad_Len = scratchPad.length;
+          clear scratchPad;
+          scratchPad.length = scratchPad_Len;
+
           if (indy_inJOBID >= 0 and inJobID <> '*' and inJobID <> '');  // Use current job
             scratchPad.jobID = splitJobName( inJobID );
           else;
@@ -202,21 +239,37 @@ ctl-opt   main(main) OPTION(*SRCSTMT);
           QUSRJOBI(libl : BUFFER_SIZE : 'JOBI0750' :
                          scratchPad.jobID : intJOBID : ec);
           if (ec.bytes_returned > 0);
-             snd-msg %TRIMR(psds.pgmname) + ' returned ' + ec.msgid;
+             snd-msg %TRIMR(psds.pgmname) + ' QUSRJOBI returned ' + ec.msgid;
              outSQLSTATE = '38701';
              return;
           endif;
 
-          if (libl.Offset_Sys_Libs > 0);
+          if (indy_PORTION >= 0 and inPORTION <> ' ');
+               LIBL_SECTION = %upper(inPORTION);
+               if (%SUBST(LIBL_SECTION : 1 : 1) = '*');
+                    LIBL_SECTION = %SUBST(LIBL_SECTION : 2);
+               endif;
+                    // If *ALLUSR or *ALLUSRLIBL etc., then
+                    // return everything except the System Portion of the LIBL
+               if (%SUBST(LIBL_SECTION : 1 : 4) = 'ALLU');
+                    LIBL_SECTION = '*';  // We use '*' to mean *ALL portions
+               elseif (%SUBST(LIBL_SECTION : 1 : 1) in %LIST(' ' : 'A'));
+                    LIBL_SECTION = 'A';  // We use '*' to mean *ALL portions
+               else;
+                    LIBL_SECTION = %SUBST(LIBL_SECTION : 1 : 1);
+               endif;
+          endif;
+
+          if (libl.Offset_Sys_Libs > 0 and LIBL_SECTION in %LIST(' ':'A'));
                scratchPad.SYSLIBS = libl.Number_Sys_Libs;
           endif;
-          if (libl.Offset_Prod_Libs > 0);
+          if (libl.Offset_Prod_Libs > 0 and LIBL_SECTION in %LIST('*':'A':'P'));
                scratchPad.PRDLIBS = libl.Number_Prod_Libs;
           endif;
-          if (libl.Offset_Curr_Libs > 0);
+          if (libl.Offset_Curr_Libs > 0 and LIBL_SECTION in %LIST('*':'A':'C'));
                scratchPad.CURLIBS = libl.Number_Curr_Libs;
           endif;
-          if (libl.Offset_User_Libs > 0);
+          if (libl.Offset_User_Libs > 0 and LIBL_SECTION in %LIST('*':'A':'U'));
                scratchPad.USRLIBS = libl.Number_User_Libs;
           endif;
           scratchPad.LIBLSIZE = scratchPad.SYSLIBS +
@@ -226,12 +279,12 @@ ctl-opt   main(main) OPTION(*SRCSTMT);
 
      endif;
 
-     if (scratchPad.eof <> 0);
+     if (inSQLOpCode = SQL_FETCH and scratchPad.eof <> 0);
           outSQLState = '02000';  // End of file
           return;
      endif;
 
-     IF (inSQLOpCode = 0);  // Fetch?
+     IF (inSQLOpCode = SQL_FETCH);  // Fetch?
           reset ec;
           qusptrus( scratchPad.LIBL_US : pLibl : ec );
 
@@ -300,12 +353,13 @@ ctl-opt   main(main) OPTION(*SRCSTMT);
           iASP_Nbr = lible.iASP_Nbr;
           iASP_Name = lible.iASP_Name;
           iASP_Group = library_Info.iASP_Group;
+          OBJ_Count  = library_Info.OBJ_Count;
 
           job =  %TrimR(libl.Job_Number) + '/' +
                  %TrimR(libl.User_Name) + '/' +
                  %trimR(libl.Job_Name);
 
-     elseif (inSQLOpCode = 1);  // Close
+     elseif (inSQLOpCode = SQL_CLOSE);  // Close
         snd-msg 'Deleting *USRSPC ' +
                     %TRIMR(%SUBST(scratchPad.LIBL_US: 1 : 10)) +
                     ' in ' + %TRIMR(%SUBST(scratchPad.LIBL_US: 11 : 10));
@@ -319,12 +373,15 @@ end-proc;
         userSpace  char(20) const;
      end-pi;
      dcl-ds ec likeds(QUSEC_T) inz(*LIKEDS);
-        dcl-pr QusDltUS  extPgm('QUSDLTUS');
-         userSpace char(20) Const;
+       dcl-pr QLIDLTO  extPgm('QLIDLTO');
+         objectName char(20) Const;
+         objType    char(10) Const;
+         ASP_NAME   char(10) Const;  // Use '*'
+         rmvMsg     char(1)  Const;  // '1'=remove "User Space deleted" msg
          api_error  LikeDS(QUSEC_T) OPTIONS(*VARSIZE:*NOPASS);
        end-pr;
        reset ec;
-       QUSDLTUS( userSpace : ec);
+       QLIDLTO( userSpace :'*USRSPC' : '*' : '1' : ec);
        return;
    end-proc;
 
@@ -396,7 +453,8 @@ END-PROC;
           end-ds;
 
           uniqueTM = %TIMESTAMP(*UNIQUE);
-          evalR uniqueID = %char(uniqueTM);
+          snd-msg %char(uniqueTM);
+          uniqueID = %SUBST(%char(uniqueTM) : 21 : 7);
           tempName = 'C4I' + uniqueID;
           usName.name = tempName;
           usName.library = 'QTEMP';
@@ -429,6 +487,7 @@ END-PROC;
           iASP_Nbr              INT(10) OVERLAY(LIB_ATTR);
           iASP_Name             CHAR(10) OVERLAY(LIB_ATTR);
           iASP_Group            CHAR(10) OVERLAY(LIB_ATTR);
+          OBJ_COUNT             INT(10) OVERLAY(LIB_ATTR);
        end-ds;
        dcl-ds libInfo likeds(library_Info) Inz;
 
@@ -452,11 +511,12 @@ END-PROC;
           api_error  LikeDS(QUSEC_T) OPTIONS(*VARSIZE);
        end-pr QLIRLIBD;
 
-       libInfo_Keys.keys = 4;
+       libInfo_Keys.keys = 5;
        libInfo_Keys.key(1) = 1; // Type of Library char(1)
        libInfo_Keys.key(2) = 2; // iASP_Number int(10)
        libInfo_Keys.key(3) = 8; // iASP_Name   char(10)
-       libInfo_Keys.key(4) = 9; // iASP_Group  char(10)
+       libInfo_Keys.key(4) = 7; // Object_Count int(10)
+       libInfo_Keys.key(5) = 9; // iASP_Group  char(10)
        libName = library;
           reset ec;
           QLIRLIBD( buffer : %size(BUFFER) : libName : libInfo_Keys : ec);
@@ -466,17 +526,20 @@ END-PROC;
           endif;
           plibDesc = %addr(buffer);
           pLibD = %addr(buffer) + %size(libDesc);
+          clear libInfo;
        for i = 1 to libDesc.Vlen_Records_Returned;
           if (libd.returned_data_length > 0 and libd.size_of_value > 0);
                select;
                  when libd.key_ID = 1; // lib type (prod/test)
-                   if (libd.lib_type = '1');
+                   if (libd.lib_type = '0');
                     libinfo.lib_type = '*PROD';
-                   elseif (libd.lib_type = '0');
+                   elseif (libd.lib_type = '1');
                     libinfo.lib_type = '*TEST';
                    endif;
                  when libd.key_id = 2;
                     libInfo.iASP_Nbr = libd.iASP_Nbr;
+                 when libd.key_id = 7;
+                    libInfo.obj_count = libd.obj_count;
                  when libd.key_id = 8;
                     libInfo.iASP_Name = libd.iASP_Name;
                  when libd.key_id = 9;

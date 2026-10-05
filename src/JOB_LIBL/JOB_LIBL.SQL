@@ -17,6 +17,7 @@ CREATE or REPLACE FUNCTION sqltools.job_libl(
           IASP_NUMBER       smallint,
           IASP_NAME         VARCHAR(10),
           IASP_GROUP        VARCHAR(10),
+          OBJECT_COUNT      INT,
               -- Same as TYPE
           PORITION          VARCHAR(10),
               -- Qualified 3-part job name of job whose library_List is returned
