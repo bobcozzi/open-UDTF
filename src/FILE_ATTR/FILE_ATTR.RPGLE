@@ -29,10 +29,15 @@ dcl-Ds psds psds qualified;
     Pgmname *proc;
 end-Ds;
 
-         // SQL UDF Stuff
+            // SQL UDF Stuff
 dcl-C SQL_FETCH 0;
 dcl-C SQL_OPEN -1;
 dcl-C SQL_CLOSE 1;
+
+            // Path case conversion option
+dcl-c  TOLOWER 2;
+dcl-c  TOUPPER 1;
+dcl-c  NOCONVERT 0;
 
 
          // Convert to hex from char MI inst.
@@ -47,16 +52,6 @@ dcl-Pr cvtch extProc('cvtch');
     inHexVal  char(65534) OPTIONS(*VARSIZE) CONST;
     Hexlen int(10) Value;
 end-Pr;
-
-     // SQL UDTF Scratch pad passed to this program
-         // Note all Scratch pads have their defined length
-         // as the first entry (first 4-byte int)
-dcl-Ds scratch_t Qualified Template;
-    Length int(10); // Length of this Scratch Pad;
-    eof    int(10);  // 1=EOF has been reached
-    Msgid char(7);
-end-Ds;
-dcl-S scratch_len int(10);
 
          // Qp0lGetAttr() API attribute selection constants
 dcl-C QP0L_ATTR_OBJTYPE 0;
@@ -170,13 +165,19 @@ dcl-Ds QUSEC_t Qualified Template;
     Msgdata char(64);
 end-Ds;
 
-dcl-Ds Qp0l_AttrTypes_List_T Qualified Template Inz;
+dcl-DS Qp0l_AttrTypes_List_T Qualified Template Inz;
     Number_ofReqAttrs uns(10);
     Attrtype uns(10) Dim(31);
-end-Ds;
-dcl-Ds attr_type likedS(Qp0l_AttrTypes_List_T) Inz;
-dcl-s  fileSuffix varchar(20) inz('.FILE');
-dcl-s  utf8File varchar(20) ccsid(UTF8);
+end-DS;
+
+dcl-DS attr_type likedS(Qp0l_AttrTypes_List_T) Inz;
+dcl-s fileSuffix varchar(20) inz('.FILE');
+dcl-s utf8File varchar(20) ccsid(UTF8);
+dcl-s utf8Path varchar(4096) ccsid(UTF8);
+dcl-s utf8NullBlank CHAR(2) CCSID(1208) INZ(X'2000');
+dcl-s cvtOpt char(1);
+dcl-s isFile Ind inz(*OFF);
+dcl-s textDesc varchar(80);
 
 dcl-Ds Qlg_Path_Name_T Qualified Inz TEMPLATE;
     CCSID INT(10) Inz(UTF8);            // Use Unicode (UTF-16)
@@ -198,6 +199,28 @@ dcl-ds Qp0l_Usage_t Qualified Inz TEMPLATE;
     dcl-subf reserved1 char(6);
 end-ds;
 
+dcl-ds Qp0l_QSYS_Info_t Qualified Template Inz;
+    Bytes_Returned uns(10);      // bytes actually returned to caller
+    Bytes_Available uns(10);     // bytes total available
+    CCSID_Out uns(10);           // CCSID of names and types returned
+    Lib_Name char(28);           // Name of library
+    Lib_Type char(20);           // Type of library
+    Obj_Name char(28);           // Name of object
+    Obj_Type char(20);           // Type of object
+    Mbr_Name char(28);           // Name of member
+    Mbr_Type char(20);           // Type of member
+    Asp_Name char(28);           // Name of ASP
+end-ds;
+
+dcl-pr Qp0lCvtPathToQSYSObjName extProc('Qp0lCvtPathToQSYSObjName');
+    Path_Name            likeds(Qlg_Path_Name_T) OPTIONS(*VARSIZE);
+    rtnQSYSName          likeds(Qp0l_QSYS_Info_t) OPTIONS(*VARSIZE);
+    apiFormat            char(8) const; // QSYS0100
+    rtnBufferLen         uns(10) value;
+    preferred_CCSID      uns(10) value;
+    errorDs              LikeDS(QUSEC_T) OPTIONS(*VARSIZE);
+end-pr;
+
 dcl-Pr Qp0lGetAttr int(10) extproc('Qp0lGetAttr');
     Path_Name            likeds(Qlg_Path_Name_T) OPTIONS(*VARSIZE);
     Attr_Array           likeds(Qp0l_AttrTypes_List_t) OPTIONS(*VARSIZE);
@@ -212,23 +235,37 @@ end-Pr;
 dcl-s  pRtnAttr pointer;
 dcl-Ds rtnAttr likeDS(rtnAttr_T) based(pRtnAttr);
 dcl-Ds rtnAttr_t Qualified Inz TEMPLATE;
-    offset int(10);
-    Attrid int(10);
+    offset int(10);   // Offset to next attritube
+    AttrId int(10);   // Attribute ID
     Attrlen int(10);  // Lenght of attribute data
     Reserved1 char(4);
     AttrData char(256);
-    attrUTF8 char(100) CCSID(UTF8) Overlay(AttrData);
-    Attrchar50 char(50) Overlay(AttrData);
+    attrUTF8 char(100) CCSID(UTF8) Overlay(AttrData);  // UTF-8 CCSID(1208)
+    attrFileID char(16) Overlay(AttrData);
+    attrchar50 char(50) Overlay(AttrData);
     attrChar10 char(10) Overlay(AttrData);
-    Attrchar1 char(1) Overlay(AttrData);
+    attrchar1 char(1) Overlay(AttrData);
     attrTime uns(10) Overlay(AttrData);
-    Attrint4 int(10) Overlay(AttrData);
-    Attrint2 int(5) Overlay(AttrData);
-    Attruint4 uns(10) Overlay(AttrData);
-    Attruint2 uns(5) Overlay(AttrData);
+    attrint8 int(20) Overlay(AttrData);
+    attrint4 int(10) Overlay(AttrData);
+    attrint2 int(5) Overlay(AttrData);
+    attruint8 uns(20) Overlay(AttrData);
+    attruint4 uns(10) Overlay(AttrData);
+    attruint2 uns(5) Overlay(AttrData);
     last_used Likeds(Qp0l_Usage_t) overlay(attrData);
 end-Ds ;
 
+
+     // SQL UDTF Scratch pad passed to this program
+         // Note all Scratch pads have their defined length
+         // as the first entry (first 4-byte int)
+dcl-Ds scratch_t Qualified Template;
+    Length int(10);  // Length of this Scratch Pad;
+    eof    int(10);  // 1=EOF has been reached
+    cvtCase int(5);  // 0=No, 1=Uppercase, 2=Lowercase
+    reserved char(6);
+end-Ds;
+dcl-S scratch_len int(10);
 
   // NOTE: Need to use the SQL preprocessor just to support the LOB parmaeter
 dcl-Proc main ;
@@ -237,9 +274,9 @@ dcl-Proc main ;
              // Input parameters
         inLibname VARCHAR(10) const;
         inSrcfile VARCHAR(10) const;
-        inSrcmbr VARCHAR(10) const;
+        inSrcmbr  VARCHAR(10) const;
         inPATH_NAME VARCHAR(4096) CCSID(UTF8) OPTIONS(*VARSIZE);
-        inCvtopt VARCHAR(10) const;
+        cvtOption VARCHAR(10) const;
 
         outCreated  TIMESTAMP(0);
         outAccessed TIMESTAMP(0);
@@ -248,34 +285,51 @@ dcl-Proc main ;
         outLast_USED    TIMESTAMP(0);
         outLast_USED_DAYS  INT(10);
         outLast_USED_RESET TIMESTAMP(0);
-        outAllocated_SIZE  INT(20);
-        outData_SIZE       INT(20);
+        outAlloc_SIZE  INT(20);  // BIGINT are signed, so <= UNS(20)
+        outData_SIZE   INT(20);
         outccsid  INT(10);
         outASPNbr int(5);
         outText   VARCHAR(50) CCSID(UTF8);
+
+        outLIBNAME VARCHAR(10);
+        outOBJNAME VARCHAR(10);
         outOBJTYPE VARCHAR(10);
+        outMBRNAME VARCHAR(10);
+        outASPNAME VARCHAR(10);
+
+               // UDTF interface checklist (DB2SQL parameter style):
+               // 1) Null indicators must be 2-byte (SMALLINT) -> RPG INT(5).
+               // 2) Set indicator to -1 for NULL and 0 for NOT NULL.
+               // 3) SQL SCRATCHPAD nnn and RPG scratch DS layout must stay aligned.
+               // 4) Keep trailing DB2SQL parms order: SQLSTATE, function/specific,
+               //    message, scratch, SQL opcode.
 
              // Input indicators
-        Indy_LIBNAME int(5);
-        Indy_SRCFILE int(5);
-        Indy_SRCMBR int(5);
+        indy_LIBNAME int(5);
+        indy_SRCFILE int(5);
+        indy_SRCMBR int(5);
 
-        Indy_PATH int(5);
-        Indy_CVTOPT int(5);
+        indy_PATH_NAME int(5);
+        indy_cvtOption int(5);
 
-        Indy_outCREATED INT(3);
-        Indy_outACCESSED INT(3);
-        Indy_outCHANGED INT(3);
-        Indy_outDATA_CHANGED INT(3);
-        Indy_outLAST_USED INT(3);
-        Indy_outLAST_USED_DAYS INT(3);
-        Indy_outLAST_USED_RESET INT(3);
-        Indy_outALLOCATED_SIZE INT(3);
-        Indy_outDATA_SIZE INT(3);
-        Indy_outCCSID  INT(3);
-        indy_outASPNbr INT(3);
-        Indy_outTEXT   INT(3);
-        indy_outOBJTYPE  INT(3);
+        indy_outCREATED INT(5);
+        indy_outACCESSED INT(5);
+        indy_outCHANGED INT(5);
+        indy_outDATA_CHANGED INT(5);
+        indy_outLAST_USED INT(5);
+        indy_outLAST_USED_DAYS INT(5);
+        indy_outLAST_USED_RESET INT(5);
+        indy_outALLOC_SIZE INT(5);
+        indy_outDATA_SIZE INT(5);
+        indy_outCCSID  INT(5);
+        indy_outASPNbr INT(5);
+        indy_outTEXT   INT(5);
+
+        indy_outLIBNAME INT(5);
+        indy_outOBJNAME INT(5);
+        indy_outOBJTYPE INT(5);
+        indy_outMBRNAME INT(5);
+        indy_outASPNAME INT(5);
 
              // Standard DB2SQL scratchpad/diagnostic fields
         outSQLSTATE CHAR(5);
@@ -291,29 +345,58 @@ dcl-Proc main ;
     dcl-ds ec likeDS(qusec_t) inz(*LIKEDS);
     dcl-s  rc int(10);
     dcl-ds PATH likeDS(Qlg_Path_Name_T) inz(*LIKEDS);
+    dcl-ds savedPATH likeDS(Qlg_Path_Name_T) inz(*LIKEDS);
+    dcl-ds qsys_Name likeDS(Qp0l_QSYS_Info_t) Inz;
     dcl-s bytesReturned uns(10);
     dcl-s bytesAvail    uns(10);
     dcl-s rtnBuffer CHAR(4096);
 
-    snd-msg 'Starting ' + %trimR(psds.pgmname) +
-            ' with SQL Opcode=' + %char(sqlOpcode);
+    snd-msg '*+*+* ' + %TRIMR(psds.Pgmname) + ' Called with SQLopCode=' + %char(sqlOpcode) +
+            ' EOF=' + %Char(scratch.eof) + ' SQLSTATE=' + outSQLState;
+
     if (sqlOpCode = SQL_OPEN);
         Scratch_Len = scratch.length;
-        Clear scratch;
+        clear scratch;
+        clear Attr_Type;
+        clear rtnBuffer;
+        outSQLSTATE = '00000';
+        indy_outCREATED = 0;
+        indy_outACCESSED = 0;
+        indy_outCHANGED = 0;
+        indy_outDATA_CHANGED = 0;
+        indy_outLAST_USED = 0;
+        indy_outLAST_USED_DAYS = 0;
+        indy_outLAST_USED_RESET = 0;
+        indy_outALLOC_SIZE = 0;
+        indy_outDATA_SIZE = 0;
+        indy_outCCSID = 0;
+        indy_outASPNbr = 0;
+        indy_outTEXT = 0;
+        indy_outLIBNAME = 0;
+        indy_outOBJNAME = 0;
+        indy_outOBJTYPE = 0;
+        indy_outMBRNAME = 0;
+        indy_outASPNAME = 0;
         Scratch.length = scratch_len;
         return;
     endif;
 
-    if (scratch.eof = 1);
-        snd-msg 'Leaving FILE_ATTR with eof=1';
-        outSQLState = '02000';
-        Clear scratch;
+    if (sqlOpCode = SQL_CLOSE);
         Return;
     endif;
+
+    if (scratch.eof = 1);
+        outSQLState = '02000';
+        Return;
+    endif;
+
 
     if (sqlOpCode = SQL_FETCH);
         Scratch.eof = 1;
         clear Attr_Type;
+        clear outSQLMSG;
+        outSQLSTATE = '00000';
+
         Attr_type.Number_ofReqAttrs += 1;
         Attr_type.AttrType(attr_type.Number_ofReqAttrs) =
                QP0L_ATTR_CREATE_TIME;
@@ -332,6 +415,14 @@ dcl-Proc main ;
 
         Attr_type.Number_ofReqAttrs += 1;
         Attr_type.AttrType(attr_type.Number_ofReqAttrs) =
+               QP0L_ATTR_DATA_SIZE_64;
+
+        Attr_type.Number_ofReqAttrs += 1;
+        Attr_type.AttrType(attr_type.Number_ofReqAttrs) =
+               QP0L_ATTR_ALLOC_SIZE_64;
+
+        Attr_type.Number_ofReqAttrs += 1;
+        Attr_type.AttrType(attr_type.Number_ofReqAttrs) =
                 QP0L_ATTR_USAGE_INFORMATION;
 
         Attr_type.Number_ofReqAttrs += 1;
@@ -346,39 +437,84 @@ dcl-Proc main ;
         Attr_type.AttrType(attr_type.Number_ofReqAttrs) =
                QP0L_ATTR_TEXT;
 
+        Attr_type.Number_ofReqAttrs += 1;
+        Attr_type.AttrType(attr_type.Number_ofReqAttrs) =
+               QP0L_ATTR_FILE_ID;
+
         utf8File = fileSuffix;
-        if (%scan(utf8File : %upper(inPATH_NAME)) = 0);
-           Attr_type.Number_ofReqAttrs += 1;
-           Attr_type.AttrType(attr_type.Number_ofReqAttrs) =
-               QP0L_ATTR_OBJTYPE;
-        else;
-          outOBJTYPE = '*FILE';
+
+        if (indy_cvtOption >= 0);
+            cvtOpt = %UPPER(%trimL(cvtOption : '* '));
+            select;
+                when cvtOpt in %LIST('0' : 'N' : 'S');  // No conversion
+                    scratch.cvtCase = NOCONVERT;
+                when cvtOpt in %LIST('1' : 'Y' : 'U');  // To upper
+                    scratch.cvtCase = TOUPPER;
+                when cvtOpt in %LIST('2' : 'L');  // To lower
+                    scratch.cvtCase = TOLOWER;
+            endsl;
         endif;
 
-        Path.ptr_Path = %Addr(inPATH_NAME : *DATA) ;
-        Path.Path_Length = %len(inPATH_NAME);
-        snd-msg 'Path Length=' + %char(Path.Path_Length);
+        if (indy_PATH_NAME < 0 or %len(inPath_NAME) = 0);
+            utf8Path = '/QSYS.LIB';
+            if (indy_LIBNAME >= 0);
+                utf8Path += '/' + %TrimR(inLibNAME) + '.LIB';
+            endif;
+            if (indy_SRCFILE >= 0);
+                utf8Path += '/' + %TrimR(inSrcFIle) + '.FILE';
+            endif;
+            if (indy_SRCMBR >= 0);
+                utf8Path += '/' + %TrimR(inSrcMbr) + '.MBR';
+            endif;
+            isFile = '1';
+            Path.ptr_Path = %Addr(utf8Path : *DATA) ;
+            Path.Path_Length = %len(utf8Path);
+        else;
+            if (scratch.cvtCase <> NOCONVERT);
+                if (scratch.cvtCase = TOUPPER);
+                    utf8Path = %UPPER( inPATH_NAME );
+                    utf8File = %UPPER( utf8File );
+                elseif (scratch.cvtCase = TOLOWER);
+                    utf8Path = %LOWER( inPATH_NAME );
+                    utf8File = %LOWER( utf8File );
+                endif;
+                isFile = (%scan(utf8File : utf8Path) > 0);
+                Path.ptr_Path = %Addr(utf8Path : *DATA) ;
+                Path.Path_Length = %len(utf8Path);
+            else;
+                Path.ptr_Path = %Addr(inPATH_NAME : *DATA) ;
+                Path.Path_Length = %len(inPATH_NAME);
+                isFile = (%scan(utf8File : %upper(inPATH_NAME)) > 0);
+            endif;
+        endif;
 
+        if (NOT isFile);
+            Attr_type.Number_ofReqAttrs += 1;
+            Attr_type.AttrType(attr_type.Number_ofReqAttrs) =
+                            QP0L_ATTR_OBJTYPE;
+        endif;
+        savedPath = path;
         rc = Qp0lGetAttr( path : attr_type :
                     rtnBuffer : %size(rtnBuffer) :
                     bytesAvail :
                     bytesReturned : QP0L_FOLLOW_SYMLNK);
 
         If (bytesReturned > 0);
-            snd-msg 'Received ' + %char(bytesReturned) + ' from Qp0lGetAttr())';
             pRtnAttr = %addr(rtnBuffer);
         else;
             pErrNo = errNo();
-            snd-msg 'Qp0lGetAttr returned ' + %Char(nErrNo) + ' - ' +
+            snd-msg %TRIMR(psds.Pgmname) + ' returned ' + %Char(nErrNo) + ' - ' +
                         %str(strerror( nErrNo ));
-
-            snd-msg 'Nothing received from Qp0lGetAttr()). Setting SQLState=02000';
+            snd-msg 'Nothing received from Qp0lGetAttr()) in ' + %TRIMR(psds.Pgmname);
             outSQLState = '02000';
             scratch.eof = 1;
             return;
         endIf;
 
+
+
         Dow rtnAttr.AttrLen > 0 or rtnAttr.Offset > 0;
+
             If rtnAttr.AttrLen <= 0;
                 outSQLMSG = 'Attr ' + %char(rtnAttr.attrID) +
                    ' is not supported by file.';
@@ -386,28 +522,28 @@ dcl-Proc main ;
             Else;
                 select;
                     WHEN rtnAttr.AttrID = QP0L_ATTR_CREATE_TIME;
-                        snd-msg 'QP0L_ATTR_CREATE_TIME';
+
                         monitor;
                             outCREATED = EpochTM + %SECONDS(rtnAttr.Attrtime);
                         on-error;
                             indy_outCREATED = -1;
                         endmon;
                     WHEN rtnAttr.AttrID = QP0L_ATTR_CHANGE_TIME;
-                        snd-msg 'QP0L_ATTR_CHANGE_TIME';
+
                         monitor;
                             outCHANGED = EpochTM + %SECONDS(rtnAttr.Attrtime);
                         on-error;
                             indy_outCHANGED = -1;
                         endmon;
                     WHEN rtnAttr.AttrID = QP0L_ATTR_MODIFY_TIME;
-                        snd-msg 'QP0L_ATTR_MODIFY_TIME';
+
                         monitor;
-                            outCHANGED = EpochTM + %SECONDS(rtnAttr.Attrtime);
+                            outDATA_CHANGED = EpochTM + %SECONDS(rtnAttr.Attrtime);
                         on-error;
-                            indy_outCHANGED = -1;
+                            indy_outDATA_CHANGED = -1;
                         endmon;
                     WHEN rtnAttr.AttrID = QP0L_ATTR_ACCESS_TIME;
-                        snd-msg 'QP0L_ATTR_ACCESS_TIME';
+
                         monitor;
                             outACCESSED = EpochTM + %SECONDS(rtnAttr.Attrtime);
                         on-error;
@@ -415,7 +551,7 @@ dcl-Proc main ;
                         endmon;
 
                     WHEN rtnAttr.AttrID = QP0L_ATTR_USAGE_INFORMATION;
-                        snd-msg 'QP0L_ATTR_USAGE_INFORMATION';
+
                         outLAST_USED_DAYS = rtnAttr.last_used.usedDays;
                         monitor;
                             outLAST_USED = EpochTM +
@@ -429,21 +565,28 @@ dcl-Proc main ;
                         on-error;
                             indy_outLAST_USED_RESET = -1;
                         endmon;
+
+                    WHEN rtnAttr.AttrID = QP0L_ATTR_DATA_SIZE_64;
+
+                        outDATA_Size = rtnAttr.Attruint8;
+                    WHEN rtnAttr.AttrID = QP0L_ATTR_ALLOC_SIZE_64;
+
+                        outALLOC_Size = rtnAttr.Attruint8;
+
                     WHEN rtnAttr.AttrID = QP0L_ATTR_ASP;
-                        snd-msg 'QP0L_ATTR_ASP';
+
                         outASPNbr = rtnAttr.Attruint2;
                     WHEN rtnAttr.AttrID = QP0L_ATTR_CCSID;
-                        snd-msg 'QP0L_ATTR_CCSID';
+
                         outCCSID = rtnAttr.attruint4;
                     WHEN rtnAttr.AttrID = QP0L_ATTR_OBJTYPE;
-                        snd-msg 'QP0L_ATTR_OBJTYPE';
                         outOBJTYPE =
-                        %subst(rtnAttr.attrChar10 : 1 : rtnAttr.attrLen);
+                            %subst(rtnAttr.attrChar10 : 1 : rtnAttr.attrLen);
+                        snd-msg 'Object Type: ' + outOBJTYPE;
                     WHEN rtnAttr.AttrID = QP0L_ATTR_TEXT;
-                        snd-msg 'QP0L_ATTR_TEXT length(' +
-                                %char(rtnAttr.Attrlen) + ')';
-                        outText = rtnAttr.attrUTF8 ;
-                        outText = %TrimR(outText);
+                        outText = %TRIMR(%SUBST(rtnAttr.attrUTF8: 1
+                                        : rtnAttr.attrLen)
+                                        : utf8NullBlank);
                 endSL;
             endif;
             if (rtnAttr.Offset = 0);
@@ -451,5 +594,65 @@ dcl-Proc main ;
             endif;
             pRtnAttr = %addr(rtnBuffer) + rtnAttr.offset;
         endDo;
+
+
+        reset ec;
+
+        Qp0lCvtPathToQSYSObjName( savedPath : QSYS_Name : 'QSYS0100' :
+                                  %size(QSYS_Name) : 0 : ec);
+
+        snd-msg 'Qp0lCvtPathToQSYSObjName: bytes_returned=' + %char(ec.Bytes_returned) +
+                ' lib=' + %trimR(QSYS_Name.Lib_Name : X'00') +
+                ' obj=' + %trimR(QSYS_Name.Obj_Name : X'00') +
+                ' type=' + %trimR(QSYS_Name.Obj_Type : X'00') +
+                ' mbr=' + %trimR(QSYS_Name.Mbr_Name : X'00') +
+                ' asp=' + %trimR(QSYS_Name.ASP_Name : X'00');
+
+
+        if (ec.Bytes_returned = 0);
+            if (QSYS_NAME.Lib_Name = *ALLX'00');
+                indy_outLIBNAME = -1;
+                clear outLIBNAME;
+            else;
+                outLIBNAME = %trimR(QSYS_Name.Lib_Name : X'00');
+                indy_outLIBNAME = 0;
+            endif;
+
+            if (QSYS_NAME.Obj_Name = *ALLX'00');
+                indy_outOBJNAME = -1;
+                clear outOBJNAME;
+            else;
+                outOBJNAME = %trimR(QSYS_Name.Obj_Name : X'00');
+                indy_outOBJNAME = 0;
+            endif;
+
+            if (QSYS_NAME.Obj_Type = *ALLX'00');
+                indy_outOBJTYPE = -1;
+                clear outOBJTYPE;
+            else;
+                outOBJTYPE = %trimR(QSYS_Name.Obj_Type : X'00');
+                indy_outOBJTYPE = 0;
+            endif;
+
+            if (QSYS_NAME.Mbr_Name = *ALLX'00');
+                indy_outMBRNAME = -1;
+                clear outMBRNAME;
+            else;
+                outMBRNAME = %trimR(QSYS_Name.Mbr_Name : X'00');
+                indy_outMBRNAME = 0;
+            endif;
+
+            if (QSYS_NAME.ASP_Name = *ALLX'00');
+                indy_outASPNAME = -1;
+                clear outASPNAME;
+            else;
+                outASPNAME = %trimR(QSYS_Name.ASP_Name : X'00');
+                indy_outASPNAME = 0;
+            endif;
+        endif;
+
+        outSQLSTATE = '00000';
+        return;
     endif;
 end-proc;
+
