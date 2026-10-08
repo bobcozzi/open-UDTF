@@ -12,7 +12,7 @@ CREATE or REPLACE FUNCTION sqltools.FILE_ATTR(
                     FILE_NAME varchar(10) DEFAULT NULL,
                     MBR_NAME varchar(10)  DEFAULT '*FIRST',
                     PATH_NAME VARCHAR(4096) CCSID 1208 DEFAULT NULL,
-                    cvtOption varchar(10) DEFAULT 'NO'
+                    cvtOption VARCHAR(10) DEFAULT 'NO'
                                            )
        RETURNS table (
             created_Date timeStamp(0),  -- Creation Date
@@ -25,19 +25,23 @@ CREATE or REPLACE FUNCTION sqltools.FILE_ATTR(
             Allocate_size bigint,
             data_size bigint,
             object_CCSID int,
-            ASP_Nbr   smallInt,
-            TEXT      VARCHAR(50) CCSID 1208,
-            OBJTYPE   VARCHAR(10)
+            ASP_Nbr SMALLINT,
+            OBJTEXT VARCHAR(50) CCSID 1208,
+            LIBNAME VARCHAR(10),
+            OBJNAME VARCHAR(10),
+            OBJTYPE VARCHAR(10),
+            MBRNAME VARCHAR(10),
+            ASPNAME VARCHAR(10)
            )
-   LANGUAGE RPGLE
+  LANGUAGE RPGLE
   NO SQL
   NO FINAL CALL
-  SCRATCHPAD 128
   NOT DETERMINISTIC
   DISALLOW PARALLEL
-  CARDINALITY 1
-  EXTERNAL NAME 'SQLTOOLS/FILE_ATTR'
+  SCRATCHPAD 16
   SPECIFIC sqlTools.FILE_ATTR
+  EXTERNAL NAME 'SQLTOOLS/FILE_ATTR'
+  CARDINALITY 1
   PARAMETER STYLE DB2SQL;
 
 LABEL on specific routine sqltools.FILE_ATTR IS
@@ -73,12 +77,11 @@ comment on parameter SPECIFIC FUNCTION sqltools.FILE_ATTR
    parameters are ignored. When the FILE_NAME parameter is specified,
    then this parameter (PATH_NAME) is ignored.',
 
-   CVTOPTION IS 'Controls whether to automatically convert the file name
-   to all upper case. The default ''NO'' indicates that no case conversion
-   will be preformed by the function. When ''YES'' or ''UPPER'' is specified,
-   then the QlgConvertCase API is used to translate the file name to
-   upper case. When ''LOWER'' is specified, the file name is translated to
-   all lower case, again using the QlgConvertCase API.'
+  CVTOPTION IS 'Controls whether to automatically convert the case of the
+   path name. The default ''NO'' indicates that the path name is used as
+   provided. When ''YES'' or ''UPPER'' is specified, the path is
+   translated to upper case. When ''LOWER'' is specified, the path is
+   translated to lower case.'
  );
 
 

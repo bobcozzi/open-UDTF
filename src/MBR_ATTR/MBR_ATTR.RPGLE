@@ -115,6 +115,12 @@ dcl-ds Qdb_Mbrd0200_T  Qualified Inz TEMPLATE;
      Reserved2 CHAR(6);
 end-ds;  // Qdb_Mbrd0200_T
 
+dcl-ds scratch_t qualified template;
+     length int(10);
+     eof    int(10);
+     counter int(10);  // Will always be 0 or 1 in this UDTF
+     mbrDesc likeds(Qdb_Mbrd0200_T);
+end-ds;
 
 
 dcl-proc main ;
@@ -182,16 +188,17 @@ dcl-proc main ;
                // Standard DB2SQL scratchpad/diagnostic fields
           outSQLSTATE   CHAR(5);
           inFuncName    VARCHAR(517) CONST;  // Function name
-          inSpecName    VARCHAR(128) CONST;  // Specific function name
-          outSQLMSG     VARCHAR(70);
-          inSQLOpCode   INT(10) CONST; // -1=Open, 0=Fetch, 1=Close
+          specificName  VARCHAR(128) CONST;  // Specific function name
+          sqlmsgText    VARCHAR(70);
+          scratch       likeDS(scratch_t);
+          SQLOpCode     int(10) CONST; // -1=Open, 0=Fetch, 1=Close
      end-pi;
 
      // Local API error info and returned member buffer
      dcl-ds ec likeDS(qusec_t) inz(*LIKEDS);
 
-     dcl-ds BUFFER likeds(Qdb_Mbrd0200_T) static;
-     dcl-s  BUFFER_SIZE int(10) inz(%SIZE(BUFFER));
+
+     dcl-s  BUFFER_SIZE int(10) inz(%SIZE(scratch.MBRDESC));
      dcl-s  APIFMT CHAR(8) INZ('MBRD0100');
      dcl-c  API200 Const('MBRD0200');
      dcl-s  Counter int(10) inz(0) static;
@@ -201,12 +208,28 @@ dcl-proc main ;
      dcl-s  FINDMBR CHAR(1) INZ('1');
      dcl-s  DETAILS CHAR(1) INZ('0') static;
 
+      dcl-s invocation_Counter int(10) static;
+
+
+     invocation_Counter += 1;
+     snd-msg '***********************************';
+     snd-msg '* Specific Name=' + %trim(specificName);
+     snd-msg '* SQLOpcode=' + %char(sqlOpCode);
+     snd-msg '* SQLState =' + %char(outSQLState);
+     snd-msg '* Passthru Counter = ' + %char(invocation_Counter);
+     snd-msg '* Scratch.length = ' + %char(scratch.length);
+     snd-msg '* Scratch.eof = ' + %char(scratch.eof);
+     snd-msg '* Scratch.counter = ' + %char(scratch.counter);
+     snd-msg '***********************************';
+
 
      // OPEN: normalize inputs and call QUSRMBRD once
-     IF (inSQLOpCode = SQL_OPEN);  // Open?
+     IF (SQLOpCode = SQL_OPEN);  // Open?
           counter = 0;
           reset DETAILS;
-          clear buffer;
+          clear scratch.mbrDesc;
+          clear scratch.eof;
+          clear scratch.counter;
 
           // Build FILE(LIB) argument with defaults and case handling
           if (indy_inLIBNAME < 0 or inLIBNAME = ' ' or
@@ -215,28 +238,28 @@ dcl-proc main ;
           else;
                %SUBST(FILENAME : 11 : 10) = %UPPER(inLIBNAME);
           endif;
-          if (indy_inSRCFILE > 0);
+          if (indy_inSRCFILE >= 0);
                if (%SUBST(inSRCFILE : 1 : 1) <> '"');
                     %SUBST(FILENAME : 1 : 10) = %UPPER(inSRCFILE);
                else;
                     %SUBST(FILENAME : 1 : 10) = inSRCFILE;
                endif;
           else;
-               snd-msg %trimR(psds.pgmname) + 'err: The FILE_NAME (source file) +
-                                             parameter is required.';
+               snd-msg %trimR(psds.pgmname) + ' err: The FILE_NAME (source file) +
+                                                parameter is required.';
                outSQLSTATE = '38701';
                return;
-          endif
-               if (indy_inSRCMBR >= 0 and inSRCMBR <> ' ' and
-                         %SUBST(inSRCMBR:1:1) <> X'00');
-          if (%SUBST(inSRCMBR : 1 : 1) <> '"');
-               MBRNAME = %UPPER(inSRCMBR);
-          else;
-               MBRNAME = inSRCMBR;
           endif;
-     else;
-          MBRNAME = '*FIRST';
-     endif;
+          if (indy_inSRCMBR >= 0 and inSRCMBR <> ' ' and
+                         %SUBST(inSRCMBR:1:1) <> X'00');
+               if (%SUBST(inSRCMBR : 1 : 1) <> '"');
+                    MBRNAME = %UPPER(inSRCMBR);
+               else;
+                    MBRNAME = inSRCMBR;
+               endif;
+          else;
+               MBRNAME = '*FIRST';
+          endif;
 
           // Normalize override-member option to API flag 0/1
      if (indy_inOVR < 0 or inOVR = ' ' or
@@ -281,7 +304,7 @@ dcl-proc main ;
      endif;
 
           // Retrieve member attributes from QUSRMBRD
-     QUSRMBRD( BUFFER : BUFFER_size : APIFMT : fileName : mbrName :
+     QUSRMBRD( scratch.MBRDESC : BUFFER_size : APIFMT : fileName : mbrName :
                          OVRMBR : ec : FINDMBR);
 
           // Surface API/empty-buffer failures back to SQL runtime
@@ -290,7 +313,7 @@ dcl-proc main ;
           outSQLSTATE = '38701';
           return;
      endif;
-     if (buffer.Bytes_Returned = 0);
+     if (scratch.MBRDESC.Bytes_Returned = 0);
           snd-msg %TRIMR(psds.pgmname) + 'Returned no information.';
           outSQLSTATE = '38701';
           return;
@@ -299,64 +322,75 @@ dcl-proc main ;
 
 endif;
 
-     // FETCH: return one row from static buffer, then EOF
-IF (inSQLOpCode = SQL_FETCH);  // Fetch?
-     if (counter > 0);
+     if (SQLOpCode = SQL_FETCH and scratch.eof = 1);
           outSQLState = '02000';
           return;
      endif;
 
-     counter += 1;
+     // FETCH: return one row from static buffer, then EOF
+IF (SQLOpCode = SQL_FETCH);  // Fetch?
+
+     scratch.counter += 1;
+     scratch.eof = 1;  // Only one row is returned by the UDTF, so EOF!
 
           // Map common output columns
-     outOBJLIB  = buffer.Db_File_Lib;
-     outOBJNAME  = buffer.Db_File_Name;
-     outMBRNAME  = buffer.Member_Name;
+     outOBJLIB  = scratch.MBRDESC.Db_File_Lib;
+     outOBJNAME  = scratch.MBRDESC.Db_File_Name;
+     outMBRNAME  = scratch.MBRDESC.Member_Name;
 
-     outSRCTYPE  = buffer.Src_Type;
-     outFILEATTR = buffer.File_Attr;
-     outTEXT     = buffer.Text_Desc;
+     outSRCTYPE  = scratch.MBRDESC.Src_Type;
+     outFILEATTR = scratch.MBRDESC.File_Attr;
+     outTEXT     = scratch.MBRDESC.Text_Desc;
      monitor;
           outCreated = %TimeStamp(
-              %DATE(%SUBST(buffer.Crt_Date : 1 : 7) : *CYMD0)  +
-              %TIME(%SUBST(buffer.Crt_Date : 8 : 6) : *HMS0));
+              %DATE(%SUBST(scratch.MBRDESC.Crt_Date : 1 : 7) : *CYMD0)  +
+              %TIME(%SUBST(scratch.MBRDESC.Crt_Date : 8 : 6) : *HMS0));
      on-error;
           indy_created = -1;
      endmon;
      monitor;
           outLast_Source_changed = %TimeStamp(
-              %DATE(%SUBST(buffer.Src_Change_Date : 1 : 7) : *CYMD0)  +
-              %TIME(%SUBST(buffer.Src_Change_Date : 8 : 6) : *HMS0));
+              %DATE(%SUBST(scratch.MBRDESC.Src_Change_Date : 1 : 7) : *CYMD0)  +
+              %TIME(%SUBST(scratch.MBRDESC.Src_Change_Date : 8 : 6) : *HMS0));
      on-error;
           indy_Last_Source_changed = -1;
      endmon;
 
           // Map optional detailed columns when requested
+     if (DETAILS <> '1');
+          indy_Record_count = -1;
+          indy_Deleted_Count = -1;
+          indy_EXPDATE   = -1;
+          indy_LastUsed_Days = -1;
+          indy_LastUsed_Date = -1;
+          indy_LastUsed_Reset = -1;
+          indy_Object_Changed = -1;
+     endif;
      if (DETAILS = '1');
           monitor;
                outObject_Changed = %TimeStamp(
-               %DATE(%SUBST(buffer.Change_Date : 1 : 7) : *CYMD0)  +
-               %TIME(%SUBST(buffer.Change_Date : 8 : 6) : *HMS0));
+               %DATE(%SUBST(scratch.MBRDESC.Change_Date : 1 : 7) : *CYMD0)  +
+               %TIME(%SUBST(scratch.MBRDESC.Change_Date : 8 : 6) : *HMS0));
           on-error;
                indy_Object_Changed = -1;
           endmon;
 
-          outRecord_Count = buffer.Num_Cur_Rec_U;
-          outDeleted_Count = buffer.Num_Dlt_Rec_U;
+          outRecord_Count = scratch.MBRDESC.Num_Cur_Rec_U;
+          outDeleted_Count = scratch.MBRDESC.Num_Dlt_Rec_U;
           monitor;
-               outEXPDATE = %DATE( buffer.Exp_Date : *CYMD0);
+               outEXPDATE = %DATE( scratch.MBRDESC.Exp_Date : *CYMD0);
           on-error;
                indy_EXPDATE = -1;
           endmon;
 
-          outLASTUSED_DAYS = buffer.Nbr_Days_Used;
+          outLASTUSED_DAYS = scratch.MBRDESC.Nbr_Days_Used;
           monitor;
-               outLASTUSED_DATE = %DATE(buffer.Date_Lst_Used: *CYMD0);
+               outLASTUSED_DATE = %DATE(scratch.MBRDESC.Date_Lst_Used: *CYMD0);
           on-error;
                indy_LASTUSED_DATE = -1;
           endmon;
           monitor;
-               outLASTUSED_RESET = %DATE(buffer.Use_Reset_Date : *CYMD0);
+               outLASTUSED_RESET = %DATE(scratch.MBRDESC.Use_Reset_Date : *CYMD0);
           on-error;
                indy_LASTUSED_RESET = -1;
           endmon;
@@ -367,7 +401,7 @@ endif;
 
 
      // CLOSE: no state cleanup required
-if (inSQLOpCode = SQL_CLOSE);  // Close
+if (SQLOpCode = SQL_CLOSE);  // Close
        // Nothing to do here.
 endif;
 

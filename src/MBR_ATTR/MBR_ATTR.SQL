@@ -11,9 +11,10 @@ CREATE or REPLACE FUNCTION sqltools.mbr_attr(
                                   LIBRARY_NAME varchar(10) DEFAULT '*LIBL',
                                   FILE_NAME varchar(10),
                                   MBR_NAME varchar(10)  default '*FIRST',
+
                                   OVR_MBR varchar(10)  default 'YES',
                                   FIND_MBR  varchar(10)  default 'YES',
-                                  DETAILED_INFO varchar(10)  default 'NO'
+                                  DETAILED_INFO varchar(10)  default 'YES'
                                            )
        RETURNS table (
           -- Begin detailed_info=>'BASIC' | 'NO' columns
@@ -23,8 +24,8 @@ CREATE or REPLACE FUNCTION sqltools.mbr_attr(
             SRCTYPE   varchar(10),
             FILEATTR  varchar(10),   -- PF, LF, DDMF
             TEXT      varchar(50),   -- Mbr Text description
-            create_timestamp timeStamp(0),  -- Date/Time member was added
-            Last_Source_change_timestamp timestamp(0), -- Last Changed
+            mbr_created timeStamp(0),  -- Date/Time member was added
+            Last_Source_changed timestamp(0), -- Last Changed
 
           -- Begin detailed_info=>'FULL' | 'YES' columns
             Record_count BIGINT,         -- Current record count
@@ -33,14 +34,16 @@ CREATE or REPLACE FUNCTION sqltools.mbr_attr(
             Last_used_Days int,      -- Days since last used
             Last_used_Date date,     -- Last Used Date/Time
             Last_used_Reset_date date, -- Last used: Reset Date
-            Object_Change_TimeStamp timestamp(0)   -- Object Changed timestamp
+            Object_Changed timestamp(0)   -- Object Changed timestamp
            )
        LANGUAGE RPGLE
        NO SQL
        NOT FENCED
        NOT DETERMINISTIC
        DISALLOW PARALLEL
+       SCRATCHPAD 320
        SPECIFIC sqlTools.mbr_attr
+       EXTERNAL NAME 'SQLTOOLS/MBR_ATTR'
        CARDINALITY 1
        PARAMETER STYLE DB2SQL;
 
