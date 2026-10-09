@@ -212,6 +212,23 @@ dcl-ds Qp0l_QSYS_Info_t Qualified Template Inz;
     Asp_Name char(28);           // Name of ASP
 end-ds;
 
+  // QUSRMBRD API Interfaces
+    dcl-ds Qdb_Mbrd0100_T  Qualified Inz TEMPLATE;
+     Bytes_Returned INT(10);
+     Bytes_Available INT(10);
+     Db_File_Name CHAR(10);
+     Db_File_Lib CHAR(10);
+     Member_Name CHAR(10);
+     File_Attr CHAR(10);
+     Src_Type CHAR(10);
+     Crt_Date CHAR(13);
+     Src_Change_Date CHAR(13);
+     Text_Desc CHAR(50);
+     Src_File CHAR(1);
+               // END of MBRD0100
+    end-ds;
+
+
 dcl-pr Qp0lCvtPathToQSYSObjName extProc('Qp0lCvtPathToQSYSObjName');
     Path_Name            likeds(Qlg_Path_Name_T) OPTIONS(*VARSIZE);
     rtnQSYSName          likeds(Qp0l_QSYS_Info_t) OPTIONS(*VARSIZE);
@@ -231,6 +248,18 @@ dcl-Pr Qp0lGetAttr int(10) extproc('Qp0lGetAttr');
     Follow_Symlnk        uns(10) value;
     moreParms char(10) options(*NOPASS:*VARSIZE);
 end-Pr;
+
+dcl-pr QUSRMBRD EXTPGM('QUSRMBRD');
+     rtnMBRINFO char(1024) OPTIONS(*VARSIZE);
+     rtnMbrInfoSize int(10) Const;
+     APIFORMAT  char(8) Const;
+     FileLib    char(20) Const;
+     MbrName    char(10) Const;
+     OVR        char(1)  Const;
+     apiError   LikeDS(QUSEC_T) OPTIONS(*VARSIZE:*NOPASS);
+     FindMbr    char(1)  Const OPTIONS(*NOPASS);
+end-pr;
+
 
 dcl-s  pRtnAttr pointer;
 dcl-Ds rtnAttr likeDS(rtnAttr_T) based(pRtnAttr);
@@ -269,12 +298,13 @@ dcl-S scratch_len int(10);
 
   // NOTE: Need to use the SQL preprocessor just to support the LOB parmaeter
 dcl-Proc main ;
-    dcl-pi main EXTPGM('FILE_ATTR');
+    dcl-pi main EXTPGM('OBJ_ATTR');
 
              // Input parameters
         inLibname VARCHAR(10) const;
-        inSrcfile VARCHAR(10) const;
-        inSrcmbr  VARCHAR(10) const;
+        inOBJNAME VARCHAR(10) const;
+        inOBJTYPE VARCHAR(10) const;
+        inMBRNAME  VARCHAR(10) const;
         inPATH_NAME VARCHAR(4096) CCSID(UTF8) OPTIONS(*VARSIZE);
         cvtOption VARCHAR(10) const;
 
@@ -295,6 +325,7 @@ dcl-Proc main ;
         outOBJNAME VARCHAR(10);
         outOBJTYPE VARCHAR(10);
         outMBRNAME VARCHAR(10);
+        outSRCTYPE VARCHAR(10);
         outASPNAME VARCHAR(10);
 
                // UDTF interface checklist (DB2SQL parameter style):
@@ -306,8 +337,9 @@ dcl-Proc main ;
 
              // Input indicators
         indy_LIBNAME int(5);
-        indy_SRCFILE int(5);
-        indy_SRCMBR int(5);
+        indy_OBJNAME int(5);
+        indy_OBJTYPE int(5);
+        indy_MBRNAME int(5);
 
         indy_PATH_NAME int(5);
         indy_cvtOption int(5);
@@ -329,6 +361,7 @@ dcl-Proc main ;
         indy_outOBJNAME INT(5);
         indy_outOBJTYPE INT(5);
         indy_outMBRNAME INT(5);
+        indy_outSRCTYPE INT(5);
         indy_outASPNAME INT(5);
 
              // Standard DB2SQL scratchpad/diagnostic fields
@@ -350,9 +383,9 @@ dcl-Proc main ;
     dcl-s bytesReturned uns(10);
     dcl-s bytesAvail    uns(10);
     dcl-s rtnBuffer CHAR(4096);
-
-    snd-msg '*+*+* ' + %TRIMR(psds.Pgmname) + ' Called with SQLopCode=' + %char(sqlOpcode) +
-            ' EOF=' + %Char(scratch.eof) + ' SQLSTATE=' + outSQLState;
+    dcl-ds mbrDesc likeDS(Qdb_Mbrd0100_T) Inz;
+    dcl-s fileName char(20);
+    dcl-s mbrName  char(10);
 
     if (sqlOpCode = SQL_OPEN);
         Scratch_Len = scratch.length;
@@ -441,8 +474,6 @@ dcl-Proc main ;
         Attr_type.AttrType(attr_type.Number_ofReqAttrs) =
                QP0L_ATTR_FILE_ID;
 
-        utf8File = fileSuffix;
-
         if (indy_cvtOption >= 0);
             cvtOpt = %UPPER(%trimL(cvtOption : '* '));
             select;
@@ -455,16 +486,21 @@ dcl-Proc main ;
             endsl;
         endif;
 
+        utf8File = fileSuffix;
+
         if (indy_PATH_NAME < 0 or %len(inPath_NAME) = 0);
             utf8Path = '/QSYS.LIB';
             if (indy_LIBNAME >= 0);
                 utf8Path += '/' + %TrimR(inLibNAME) + '.LIB';
             endif;
-            if (indy_SRCFILE >= 0);
-                utf8Path += '/' + %TrimR(inSrcFIle) + '.FILE';
+            if (indy_OBJNAME >= 0);
+                utf8Path += '/' + %TrimR(inOBJNAME);
+                if (indy_OBJTYPE >= 0);  // Add objec type extension
+                    utf8Path += '.' + %UPPER(%Trim(inOBJTYPE : '* '));
+                endif;
             endif;
-            if (indy_SRCMBR >= 0);
-                utf8Path += '/' + %TrimR(inSrcMbr) + '.MBR';
+            if (indy_MBRNAME >= 0);
+                utf8Path += '/' + %TrimR(inMBRNAME) + '.MBR';
             endif;
             isFile = '1';
             Path.ptr_Path = %Addr(utf8Path : *DATA) ;
@@ -503,18 +539,16 @@ dcl-Proc main ;
             pRtnAttr = %addr(rtnBuffer);
         else;
             pErrNo = errNo();
-            snd-msg %TRIMR(psds.Pgmname) + ' returned ' + %Char(nErrNo) + ' - ' +
+            outSQLMsg = %TRIMR(psds.Pgmname) + ' returned ' + %Char(nErrNo) + ' - ' +
                         %str(strerror( nErrNo ));
+            snd-msg outSQLMsg;
             snd-msg 'Nothing received from Qp0lGetAttr()) in ' + %TRIMR(psds.Pgmname);
             outSQLState = '02000';
             scratch.eof = 1;
             return;
         endIf;
 
-
-
         Dow rtnAttr.AttrLen > 0 or rtnAttr.Offset > 0;
-
             If rtnAttr.AttrLen <= 0;
                 outSQLMSG = 'Attr ' + %char(rtnAttr.attrID) +
                    ' is not supported by file.';
@@ -524,65 +558,67 @@ dcl-Proc main ;
                     WHEN rtnAttr.AttrID = QP0L_ATTR_CREATE_TIME;
 
                         monitor;
-                            outCREATED = EpochTM + %SECONDS(rtnAttr.Attrtime);
+                            getDts(outCREATED : rtnAttr.Attrtime);
                         on-error;
                             indy_outCREATED = -1;
                         endmon;
                     WHEN rtnAttr.AttrID = QP0L_ATTR_CHANGE_TIME;
 
                         monitor;
-                            outCHANGED = EpochTM + %SECONDS(rtnAttr.Attrtime);
+                            getDts(outCHANGED : rtnAttr.Attrtime);
                         on-error;
                             indy_outCHANGED = -1;
                         endmon;
                     WHEN rtnAttr.AttrID = QP0L_ATTR_MODIFY_TIME;
 
                         monitor;
-                            outDATA_CHANGED = EpochTM + %SECONDS(rtnAttr.Attrtime);
+                            getDts(outDATA_CHANGED : rtnAttr.Attrtime);
                         on-error;
                             indy_outDATA_CHANGED = -1;
                         endmon;
                     WHEN rtnAttr.AttrID = QP0L_ATTR_ACCESS_TIME;
 
                         monitor;
-                            outACCESSED = EpochTM + %SECONDS(rtnAttr.Attrtime);
+                            getDts(outACCESSED : rtnAttr.Attrtime);
                         on-error;
                             indy_outACCESSED = -1;
                         endmon;
 
                     WHEN rtnAttr.AttrID = QP0L_ATTR_USAGE_INFORMATION;
-
                         outLAST_USED_DAYS = rtnAttr.last_used.usedDays;
-                        monitor;
-                            outLAST_USED = EpochTM +
-                                    %SECONDS(rtnAttr.last_used.usedDate);
-                        on-error;
+                        if (rtnAttr.last_used.usedDate = 0);
                             indy_outLAST_USED = -1;
-                        endmon;
-                        monitor;
-                            outLAST_USED_RESET = EpochTM +
-                                    %SECONDS(rtnAttr.last_used.resetDate);
-                        on-error;
+                        else;
+                            monitor;
+                                getDts(outLAST_USED :
+                                        rtnAttr.last_used.usedDate);
+                            on-error;
+                                indy_outLAST_USED = -1;
+                            endmon;
+                        endif;
+                        if (rtnAttr.Last_used.resetDate = 0);
                             indy_outLAST_USED_RESET = -1;
-                        endmon;
+                        else;
+                            monitor;
+                                getDts(outLAST_USED_RESET :
+                                        rtnAttr.last_used.resetDate);
+                            on-error;
+                                indy_outLAST_USED_RESET = -1;
+                            endmon;
+                        endif;
 
                     WHEN rtnAttr.AttrID = QP0L_ATTR_DATA_SIZE_64;
-
                         outDATA_Size = rtnAttr.Attruint8;
                     WHEN rtnAttr.AttrID = QP0L_ATTR_ALLOC_SIZE_64;
-
                         outALLOC_Size = rtnAttr.Attruint8;
-
                     WHEN rtnAttr.AttrID = QP0L_ATTR_ASP;
-
                         outASPNbr = rtnAttr.Attruint2;
                     WHEN rtnAttr.AttrID = QP0L_ATTR_CCSID;
-
                         outCCSID = rtnAttr.attruint4;
                     WHEN rtnAttr.AttrID = QP0L_ATTR_OBJTYPE;
                         outOBJTYPE =
                             %subst(rtnAttr.attrChar10 : 1 : rtnAttr.attrLen);
-                        snd-msg 'Object Type: ' + outOBJTYPE;
+
                     WHEN rtnAttr.AttrID = QP0L_ATTR_TEXT;
                         outText = %TRIMR(%SUBST(rtnAttr.attrUTF8: 1
                                         : rtnAttr.attrLen)
@@ -601,14 +637,8 @@ dcl-Proc main ;
         Qp0lCvtPathToQSYSObjName( savedPath : QSYS_Name : 'QSYS0100' :
                                   %size(QSYS_Name) : 0 : ec);
 
-        snd-msg 'Qp0lCvtPathToQSYSObjName: bytes_returned=' + %char(ec.Bytes_returned) +
-                ' lib=' + %trimR(QSYS_Name.Lib_Name : X'00') +
-                ' obj=' + %trimR(QSYS_Name.Obj_Name : X'00') +
-                ' type=' + %trimR(QSYS_Name.Obj_Type : X'00') +
-                ' mbr=' + %trimR(QSYS_Name.Mbr_Name : X'00') +
-                ' asp=' + %trimR(QSYS_Name.ASP_Name : X'00');
-
-
+        // The lib, file, mbr, type, text and ASP are returned null-terminated,
+        // I use %TRIMR to remove those X'00' values when copied to the result.
         if (ec.Bytes_returned = 0);
             if (QSYS_NAME.Lib_Name = *ALLX'00');
                 indy_outLIBNAME = -1;
@@ -637,9 +667,23 @@ dcl-Proc main ;
             if (QSYS_NAME.Mbr_Name = *ALLX'00');
                 indy_outMBRNAME = -1;
                 clear outMBRNAME;
+                indy_outSRCTYPE = -1;
+                clear outSRCTYPE;
             else;
                 outMBRNAME = %trimR(QSYS_Name.Mbr_Name : X'00');
                 indy_outMBRNAME = 0;
+
+                reset ec;
+                fileName = %trimR(outOBJNAME);
+                %SUBST(fileName : 11 : 10) = %TrimR(outLIBNAME);
+                mbrName  = %trimR(outMBRNAME);
+                // Retrieve member source type
+                QUSRMBRD( MBRDESC : %size(MBRDESC) : 'MBRD0100' :
+                        fileName : mbrName : '1' : ec : '1');
+                if (mbrDesc.Bytes_returned > 8);
+                    outSRCTYPE = mbrDesc.Src_Type;
+                endif;
+
             endif;
 
             if (QSYS_NAME.ASP_Name = *ALLX'00');
@@ -656,3 +700,69 @@ dcl-Proc main ;
     endif;
 end-proc;
 
+dcl-proc getDts;
+    dcl-pi getDts  int(10);
+        localTM timeStamp(0);
+        seconds uns(10) const;
+    end-pi;
+
+
+    dcl-ds ec likeDS(QUSEC_T) inz(*LIKEDS);
+    dcl-ds timeStruct17_t Qualified Template;
+        yymd char(8);  // YYYYMMDD
+        hms  char(6);  // HHMMSS
+        mils char(3) inz('000');  // mmm
+    end-ds;
+    dcl-ds Qwc_Time_Zone_Info_T  Qualified Inz TEMPLATE;
+        Bytes_Returned INT(10);
+        Bytes_Available INT(10);
+        Time_Zone_Name CHAR(10);
+        Reserved01 CHAR(1);
+        Current_DST_Indicator CHAR(1);
+        Current_UTC_Offset INT(10);
+        Current_Full_Time_Zone_Name CHAR(50);
+        Current_Abbr_Time_Zone_Name CHAR(10);
+        Current_Time_Zone_Msg_ID CHAR(7);
+        Current_Time_Zone_Msg_File CHAR(10);
+        Current_Time_Zone_Msg_File_Lib CHAR(10);
+        Reserved02 CHAR(1);
+        YearOffset INT(10);
+    end-ds;  // Qwc_Time_Zone_Info_T
+    dcl-ds inTime likeDS(timeStruct17_t) inz(*LIKEDS);
+    dcl-ds outTime likeDS(timeStruct17_t) inz(*LIKEDS);
+    dcl-ds timeZoneInfo likeDS(Qwc_Time_Zone_Info_T) inz;
+    dcl-s  timeZoneLen  int(10) inz(0);  // We ignore the timezone parm
+    dcl-s  micro char(1) inz('0'); // Only Milliseconds
+    dcl-s  useDST char(1) inz('1'); // DST in input? (Not used)
+    dcl-s time_in_UTC timestamp(0);
+
+    dcl-pr QWCCVTDT  extPgm('QWCCVTDT');
+        inFmt char(10) Const;
+        inDate char(64) Const;
+        outFmt char(10) Const;
+        outDate char(64) OPTIONS(*VARSIZE);
+        api_error  LikeDS(QUSEC_T) OPTIONS(*VARSIZE:*NOPASS);
+        inTimeZone char(10) CONST OPTIONS(*NOPASS);
+        outTimeZone char(10) CONST OPTIONS(*NOPASS);
+        timeZoneInfo  LIKEDS(Qwc_Time_Zone_Info_T) CONST OPTIONS(*NOPASS);
+        timeZoneSize  int(10) Const OPTIONS(*NOPASS);
+        milli_or_micro_Indy char(1) Const OPTIONS(*NOPASS);
+        DST_Indy char(1) Const OPTIONS(*NOPASS); // '1'=Daylight Saving time
+    end-pr QWCCVTDT;
+
+    time_in_UTC = epochTM + %seconds(seconds);
+    inTime = %char( time_in_UTC : *ISO0 );
+    inTIme.mils = '000';
+    QWCCVTDT( '*YYMD' : inTime : '*YYMD' : outTime : ec :
+                  '*UTC' : '*JOB' : timeZoneInfo : timeZoneLen : micro);
+    if (ec.bytes_Returned = 0);
+        monitor;
+        localTM = %TimeStamp( outTime : *ISO0 : 3);
+        on-error;
+            snd-msg 'Time Failed: ' + outTime;
+            return 0;
+        endmon;
+        return 1;  // everything went okay
+    endif;
+    return 0;
+end-proc;
