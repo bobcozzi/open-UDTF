@@ -1,12 +1,14 @@
 
- -- Get Object Creation/Changed date Attributes
+ -- Get Object Attributes
+ -- @author BobCozzi
 
 CREATE or REPLACE FUNCTION sqltools.OBJ_ATTR(
+                    PATH_NAME VARCHAR(4096) CCSID 1208 DEFAULT NULL,
                     LIBRARY_NAME varchar(10) DEFAULT '*LIBL',
                     OBJECT_NAME varchar(10) DEFAULT NULL,
                     OBJTYPE  varchar(10) DEFAULT '*FILE',
                     MBR_NAME varchar(10)  DEFAULT NULL,
-                    PATH_NAME VARCHAR(4096) CCSID 1208 DEFAULT NULL,
+                    -- Convert path_name to upper/lower case?
                     cvtOption VARCHAR(10) DEFAULT 'NO'
                                            )
        RETURNS table (
@@ -35,7 +37,7 @@ CREATE or REPLACE FUNCTION sqltools.OBJ_ATTR(
   NOT DETERMINISTIC
   DISALLOW PARALLEL
   SCRATCHPAD 16
-  SPECIFIC sqlTools.OBJ_ATTR
+  SPECIFIC sqltools.OBJ_ATTR
   EXTERNAL NAME 'SQLTOOLS/OBJ_ATTR'
   CARDINALITY 1
   PARAMETER STYLE DB2SQL;
@@ -44,9 +46,8 @@ LABEL on specific routine sqltools.OBJ_ATTR IS
 '${version} - Retrieve Object Attributes';
 
 COMMENT ON Specific FUNCTION sqltools.OBJ_ATTR  IS
- '${version} - Retrieve Object Attributes returns the various
- create and change timestamps, data size, and if a source member
- is used, then the source type is returned. @author BobCozzi';
+ '${version} - Retrieve Object Attributes for a given object
+ or member in a database file. @author BobCozzi';
 
 comment on parameter SPECIFIC FUNCTION sqltools.OBJ_ATTR
  ( library_NAME IS 'The library name containing the object whose
@@ -87,5 +88,6 @@ comment on parameter SPECIFIC FUNCTION sqltools.OBJ_ATTR
    When ''NO'' or ''NONE'' is specified (the default) the path_name parameter
    value is uses as specified.'
  );
+
 
 

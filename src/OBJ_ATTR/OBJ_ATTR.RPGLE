@@ -4,18 +4,15 @@
 // Copyright (c) 2026 by R. Cozzi, Jr.
 
 
-         // @author BobCozzi
-
     ////////////////////////////////////////////////////////////////////////
-         // IBM i Retrieve File Attributes
-         // This is an SQL UDTF External Program
-         // It uses the Qp0lGetAttr API to retreive a Files attributes
-           // This information is currently not available via QSYS2 SQL functions
+    // IBM i Retrieve Object Attributes
+    // This is an SQL UDTF External Program
+    // It uses the Qp0lGetAttr and other APIs to retreive a object attributes
     ////////////////////////////////////////////////////////////////////////
-         // This is part of the collection of open source SQL UDTFs that are
-         // primarily built for the VS CODE and CODE for IBM i IDE, however
-           // they can certainly be feely used in production environments on IBM i
-         // Available on github at: https://github.com/bobcozzi/open-UDTF
+    // This is part of the collection of open source SQL UDTFs that are
+    // primarily built for the VS CODE and CODE for IBM i IDE, however
+    // they can be feely used in production environments on IBM i.
+    // Available from @BobCozzi at: https://github.com/bobcozzi/open-UDTF
     ////////////////////////////////////////////////////////////////////////
 
 ctl-opt   main(main) OPTION(*SRCSTMT);
@@ -35,8 +32,8 @@ dcl-C SQL_OPEN -1;
 dcl-C SQL_CLOSE 1;
 
             // Path case conversion option
-dcl-c  TOLOWER 2;
 dcl-c  TOUPPER 1;
+dcl-c  TOLOWER 2;
 dcl-c  NOCONVERT 0;
 
 
@@ -301,11 +298,15 @@ dcl-Proc main ;
     dcl-pi main EXTPGM('OBJ_ATTR');
 
              // Input parameters
+        inPATH_NAME VARCHAR(4096) CCSID(UTF8) OPTIONS(*VARSIZE);
+        // If above inPATH_NAME is empty or NULL, then the legacy
+        // parmaeters are used to build the path name
         inLibname VARCHAR(10) const;
         inOBJNAME VARCHAR(10) const;
         inOBJTYPE VARCHAR(10) const;
         inMBRNAME  VARCHAR(10) const;
-        inPATH_NAME VARCHAR(4096) CCSID(UTF8) OPTIONS(*VARSIZE);
+
+            // Convert PATH_NAME to upper/lower case before using it?
         cvtOption VARCHAR(10) const;
 
         outCreated  TIMESTAMP(0);
@@ -336,12 +337,13 @@ dcl-Proc main ;
                //    message, scratch, SQL opcode.
 
              // Input indicators
+        indy_PATH_NAME int(5);
+
         indy_LIBNAME int(5);
         indy_OBJNAME int(5);
         indy_OBJTYPE int(5);
         indy_MBRNAME int(5);
 
-        indy_PATH_NAME int(5);
         indy_cvtOption int(5);
 
         indy_outCREATED INT(5);
@@ -543,6 +545,8 @@ dcl-Proc main ;
                         %str(strerror( nErrNo ));
             snd-msg outSQLMsg;
             snd-msg 'Nothing received from Qp0lGetAttr()) in ' + %TRIMR(psds.Pgmname);
+            snd-msg 'Path_name=>''' + %trim(inPATH_NAME) + '''';
+
             outSQLState = '02000';
             scratch.eof = 1;
             return;
