@@ -12,24 +12,31 @@ CREATE or REPLACE FUNCTION sqltools.OBJ_ATTR(
                     cvtOption VARCHAR(10) DEFAULT 'NO'
                                            )
        RETURNS table (
-            created_Date timeStamp(0),  -- Creation Date
-            access_Date timestamp(0), -- Last accessed
+            created_Date timeStamp(0),  -- Creation timestamp
+            access_Date date, -- Last accessed Date
             changed_Date timestamp(0), -- Last Changed
             data_changed_date timestamp(0), -- Last DataChanged
-            last_used timestamp(0),
+            last_used date,
             last_used_days int,
-            last_used_reset timestamp(0),
+            last_used_reset date,
             Allocate_size bigint,
             data_size bigint,
             object_CCSID int,
-            ASP_Nbr SMALLINT,
             OBJTEXT VARCHAR(50) CCSID 1208,
+
+            ASP_Nbr SMALLINT,
+            ASP_Name VARCHAR(10),
+
             LIBNAME VARCHAR(10),
             OBJNAME VARCHAR(10),
             OBJTYPE VARCHAR(10),
+
             MBRNAME VARCHAR(10),
             SRCTYPE VARCHAR(10),
-            ASPNAME VARCHAR(10)
+            RCDCOUNT BIGINT,
+            SRCCHGDATE TIMESTAMP(0),
+            MBRCHGDATE TIMESTAMP(0),
+            MBREXPDATE DATE
            )
   LANGUAGE RPGLE
   NO SQL
