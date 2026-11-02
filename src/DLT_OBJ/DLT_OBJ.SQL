@@ -16,7 +16,7 @@ CREATE or REPLACE FUNCTION sqltools.DLT_OBJ (
                                    )
         RETURNS INT
 
-     LANGUAGE C++
+     LANGUAGE RPGLE
      NO SQL
      NO FINAL CALL
      EXTERNAL ACTION
@@ -41,7 +41,8 @@ library_name is 'The library name containing the Object
 to be deleted. If no library name is specified, then *LIBL is used.
 This parameter may be specified using either the standard "short"
 system object name (up to 10 characters) or it may be a long SQL name.
-The symbolic library names *LIBL or *CURLIB may be specified.',
+The symbolic library names including: *LIBL, *CURLIB, *ALLUSR, *USRLIBL,
+and *ALL may be specified instead of a valid library name.',
 
 OBJECT_NAME IS 'The name of the object that is to be deleted.
 The object name may be a full object name or a generic object name,
@@ -77,13 +78,13 @@ CONVERT_NAME is 'Controls whether or not to automatically convert the
 value of the OBJECT_NAME and LIBRARY_NAME parameters to upper case.
 In rare cases, IBM i interfaces can create object names that contain
 lower case characters, without the required "Hello" quotes.
-Use this parameter to force the function to automatically convert the
-input object and library name to all upper case except when enclosed in "..".
+Use this parameter to avoid automatic upper casing the provided name.
+The default is *YES (convert to uppper case) Note that names enclosed
+in double-quote (") characters are never converted regardless of this
+parameter''s setting.
 The valid choices are:<ul><li><i>*YES</i> - Convert to upper case</li>
 <li>*NO - Do not convert to upper case</li></ul>
-<p>Note: Object names encloded in double quotes (e.g., "Old.file")
-are never capitalized by this function regardless of the value of
-this parameter.</p>
-<p>The leading asterisk and upper/lower case is ignored.</p>'
+<p>For this parameter, the leading asterisk and upper/lower case are
+ignored. (e.g., *YES, *yes, *Yes or YeS are all the same.)</p>'
 );
 

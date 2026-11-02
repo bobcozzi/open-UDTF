@@ -14,10 +14,12 @@ By default, it protects system libraries from accidental deletion.
 
 ## Source files
 
-| File                       | Target member               | Purpose                           |
-| -------------------------- | --------------------------- | --------------------------------- |
-| `/src/DLT_OBJ/DLT_OBJ.CPP` | `SQLTOOLSRC/QCSRC(DLT_OBJ)` | ILE C++ external function program |
-| `/src/DLT_OBJ/DLT_OBJ.SQL` | `SQLTOOLS/QUDFSRC(DLT_OBJ)` | SQL function definition           |
+| File                         | Target member                   | Purpose                           |
+| ---------------------------- | ------------------------------- | --------------------------------- |
+| `/src/DLT_OBJ/DLT_OBJ.RPGLE` | `SQLTOOLSRC/QRPGLESRC(DLT_OBJ)` | ILE RPG external function program |
+| `/src/DLT_OBJ/DLT_OBJ.SQL`   | `SQLTOOLS/QUDFSRC(DLT_OBJ)`     | SQL function definition           |
+
+> Note: `DLT_OBJ.RPGLE` replaces the original ILE C++ implementation (`DLT_OBJ.CPP`).
 
 ---
 
@@ -212,7 +214,7 @@ VALUES SQLTOOLS.DLTOBJ(
 
 ## Notes
 
-- Implemented as an external ILE C++ SQL function (`LANGUAGE C++`, `NO SQL`).
+- Implemented as an external ILE RPG SQL function (`LANGUAGE RPGLE`, `NO SQL`).
 - Not deterministic and marked `EXTERNAL ACTION` because it deletes objects.
 - Long names are resolved to system names before the delete API is called.
 - If `OBJECT_NAME` contains `*`, system name resolution for the object name is bypassed.
