@@ -134,7 +134,7 @@ dcl-proc main ;
     if (indy_inPROTECT >= 0 and inPROTECT <> '');
         wkOption = %upper(%trimL(inPROTECT : '* '));
         if (wkOption <> '');
-            protect = (%left(wkOption : 1) in
+            protect = (%SUBST(wkOption : 1 : 1) in
                        %list('1' : 'Y' : 'T' : 'P'));
         endif;
     endif;
@@ -143,7 +143,7 @@ dcl-proc main ;
     if (indy_inCVTCASE >= 0 and inCVTCASE <> '');
         wkOption = %upper(%trimL(inCVTCASE : '* '));
         if (wkOption <> '');
-            cvtCase = (%left(wkOption : 1) in
+            cvtCase = (%SUBST(wkOption : 1 : 1) in
                        %list('1' : 'Y' : 'T' : 'P'));
         endif;
     endif;
@@ -178,17 +178,17 @@ dcl-proc main ;
         wkOption = %upper(%trimL(inRMVMSG : '* '));
         rmvMsg = '0';
         if (wkOption <> '');
-            if (%left(wkOption : 1) in %list('1' : 'Y' : 'S' : 'R'));
+            if (%SUBST(wkOption : 1 : 1) in %list('1' : 'Y' : 'S' : 'R'));
                 rmvMsg = '1';
             endif;
         endif;
     endif;
 
     if (protect and %subst(libName : 1 : 5) <> 'QTEMP');
-        if (%Left(libName : 4) = 'QSYS' or
-            %left(libName : 3) = 'SYS'  or
-            %left(libName : 3) = 'SQL'  or
-            %left(libName : 1) = 'Q');
+        if (%SUBST(libName : 1 : 4) = 'QSYS' or
+            %SUBST(libName : 1 : 3) = 'SYS'  or
+            %SUBST(libName : 1 : 3) = 'SQL'  or
+            %SUBST(libName : 1 : 1) = 'Q');
             snd-msg %trimR(psds.Pgmname) + ': ' + %trimR(wkObjName) +
                     ' in ' + %trimR(wkLibName) + ' type ' +
                     %trimR(objType) + ' is in a protected library.' +
@@ -197,7 +197,7 @@ dcl-proc main ;
         endif;
     endif;
 
-    if (%left(objName : 4) = '*ALL');
+    if (%SUBST(objName : 1 : 4) = '*ALL');
         snd-msg %trimR(psds.Pgmname) +
                 ': OBJECT_NAME=>*ALL is not permitted by this' +
                 ' routine. The delete request is cancelled.';
@@ -260,9 +260,17 @@ dcl-proc getObjSysName;
     else;
         shortObj = inLongObject;
     endif;
+    if (%SUBST(shortObj : 1 : 1) <> '"');
+        outObject = %upper(shortObj);
+    else;
+        outObject  = shortObj;
+    endif;
+    if (%SUBST(shortLib : 1 : 1) <> '"');
+        outLibrary = %upper(shortLib);
+    else;
+        outLibrary = shortLib;
+    endif;
 
-    outObject  = shortObj;
-    outLibrary = shortLib;
     return *on;
 end-proc;
 
